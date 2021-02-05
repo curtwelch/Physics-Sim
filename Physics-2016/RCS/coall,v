@@ -1,0 +1,42 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2016.08.25.16.02.16;	author curt;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2016.08.25.15.59.54;	author curt;	state Exp;
+branches;
+next	;
+
+
+desc
+@coall script
+@
+
+
+1.2
+log
+@checkpoint
+@
+text
+@# coall -- check out all files I normally edit
+co -l notes physics.py
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 2
+a2 1
+co notes physics.py ciall coall r
+@

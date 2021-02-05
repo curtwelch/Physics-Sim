@@ -1,0 +1,3 @@
+# Run!
+# Set as aliase of r=./r in ~home/.bash_aliases
+python physics.py $@

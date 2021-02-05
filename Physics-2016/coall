@@ -1,0 +1,2 @@
+# coall -- check out all files I normally edit
+co -l notes physics.py
