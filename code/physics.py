@@ -84,7 +84,6 @@ def mag_circle_test():
     # So I just sum all the parts.
 
     y = 0.0
-    z = 0.0
     for i in range(11):
         x = i * 0.1
         print("For x,y", x, y, end=' ')
@@ -171,9 +170,9 @@ def force_circle_test():
     sys.exit(1)
 
     # Conclusion ...
-    # Force at point inside cirucle only sums to a constant if the
+    # Force at point inside circle only sums to a constant if the
     # force equation is 1/x  not 1/x^2.
-    # Force sums to constant when we sum over entire spher for 1/x^22 force.
+    # Force sums to constant when we sum over entire sphere for 1/x^22 force.
     # This makes sense because the size of the circle is 2pi r, or 4pi r^2 for surface
     # The use of 1/x^2 in physics is consistent with conservation in 3D space.
 
@@ -197,13 +196,13 @@ def neutronGravityTest():
     # Does it match gravity in relative force?
     # The answer was the attraction is not even
     # 1/x^2 in force!  Opps.  That theory got blown
-    # out of the water!  The overlaping fields does
+    # out of the water!  The overlapping fields does
     # create a 1/x^2 field!
     # UGH -- 5-11-2018 thoughts: but do two systems in
     # orbit actually end up moving closer together or
-    # further apart due to distroted orbits and orbital
-    # intereactions -- this test did not answer that question
-    # and if the effect appxoimates 1/x^2 then it could be
+    # further apart due to distorted orbits and orbital
+    # interactions -- this test did not answer that question
+    # and if the effect approximates 1/x^2 then it could be
     # mistaken as 1/^x^2.  More testing required
 
     closeSpace = 0.0001 * Angstrom
@@ -322,7 +321,7 @@ def magnetic_test():
     #         for p1 in world:
     #             p1.zeroEndForce()
     #             for p2 in world:
-    #                 p1.addEndForce(p2)
+    #                 p1.add_end_force(p2)
     #
     #     for p1 in world:
     #         p1.move()
@@ -342,11 +341,11 @@ def magnetic_test():
     #     print(" r before", rBefore)
     #     print(" r after", rAfter)
     #     print(" dr =  after-before = ", rDiff)
-    #     print(" dr diff magnatude", magnitude(rDiff))
+    #     print(" dr diff magnitude", magnitude(rDiff))
     #     print(" es before  ", esBefore)
     #     print(" es after   ", esAfter)
     #     print(" es diff    ", esDiff)
-    #     print(" es diff magnatude", magnitude(esDiff))
+    #     print(" es diff magnitude", magnitude(esDiff))
     #     print()
     #
     #     magnetic_test2(world, dt=dt)
@@ -357,7 +356,7 @@ def magnetic_test():
 
     # zz
 
-    print("ZERO Monumtum!")
+    print("ZERO Momentum!")
     print()
     zero_momentum(world)
     magnetic_test2(world)
@@ -425,8 +424,8 @@ def magnetic_test():
     # if False:
     #     print("Randomly Rotate relative vx,vy vector!")
     #     # Coded this by mistake.  Meant to code vy,vz rotation which
-    #     # I did below.  When we rotate vx,vy  vextor as I'm doinging
-    #     # here, all forces change and the total magnature of the force
+    #     # I did below.  When we rotate vx,vy  vector as I'm doing
+    #     # here, all forces change and the total magnitude of the force
     #     # changes as well!
     #     rV = p1.subtract(p1.V(), p2.V())
     #     oldvx = rV[0]
@@ -452,10 +451,10 @@ def magnetic_test():
     #     p1.vx -= oldvx - dx
     #     p1.vy -= oldvy - dy
     #
-    #     # Checck if this worked, is the new relatie V the same magnatude?
+    #     # Check if this worked, is the new relative V the same magnitude?
     #     rV = p1.subtract(p1.V(), p2.V())
     #     oldr = math.sqrt(rV[0] ** 2.0 + rV[1] ** 2.0)  # x^2 + y^2
-    #     print("after rotation, magnature of vx,vy is", oldr)
+    #     print("after rotation, magnitude of vx,vy is", oldr)
     #     print("ending   relative velocity is:", rV)
     #     print()
 
@@ -473,7 +472,7 @@ def magnetic_test():
     #
     #     # Now adjust length to match old:
     #     newr = math.sqrt(dy ** 2.0 + dz ** 2)
-    #     oldr2 = oldr * 2.0  # double magnatude to see what hapens
+    #     oldr2 = oldr * 2.0  # double magnitude to see what happens
     #     oldr2 = oldr
     #     dy = dy * oldr2 / newr
     #     dz = dz * oldr2 / newr
@@ -487,10 +486,10 @@ def magnetic_test():
     #     p1.vy -= oldvy - dy
     #     p1.vz -= oldvz - dz
     #
-    #     # Checck if this worked, is the new relatie V the same magnatude?
+    #     # Check if this worked, is the new relative V the same magnitude?
     #     rV = p1.subtract(p1.V(), p2.V())
     #     oldr = math.sqrt(rV[1] ** 2.0 + rV[2] ** 2.0)  # y^2 + z^2
-    #     print("after rotation, magnature of vy,vz is", oldr)
+    #     print("after rotation, magnate of vy,vz is", oldr)
     #     print("ending   relative velocity is:", rV)
     #     print()
 
@@ -504,8 +503,8 @@ def magnitude(v):
 
 
 def magnetic_test2(world, dt=None):
-    doMagnetic = True
-    doMagneticInverse = True
+    do_magnetic = True
+    do_magnetic_inverse = True
 
     for p1 in world:
         p1.zeroForce()
@@ -922,11 +921,11 @@ class Particle:
             #     print(" p.V() is    ", p.V(), magnitude(p.V()))
             #     print(" relativeV is", relativeV, magnitude(relativeV))
             #     print(" r is        ", r)
-            #     print(" rhat is     ", rHat, "magnatude", magnitude(rHat))
-            #     print(" magF is     ", magF, "magnatude", magnitude(magF))
-            #     print(" esAdjustF is", esAdjustF, "magnatude",
+            #     print(" rhat is     ", rHat, "magnitude", magnitude(rHat))
+            #     print(" magF is     ", magF, "magnitude", magnitude(magF))
+            #     print(" esAdjustF is", esAdjustF, "magnitude",
             #           magnitude(esAdjustF))
-            #     print(" F is        ", F, "magnatude", magnitude(F))
+            #     print(" F is        ", F, "magnitude", magnitude(F))
             #     print()
         # else:
         #     # Old first way
@@ -1012,34 +1011,34 @@ class Particle:
     def magneticForceTotal4(self, p, dt=None):
         # Forth verson for testing new ideas for magnetic force
         # This is what I tried to code with Total3 but then
-        # relized was thinking about it all wrong.  I
-        # want to calucate how the strenght of E is changing
-        # over time, and then modify that strenth, but not
+        # realized was thinking about it all wrong.  I
+        # want to calculate how the strength of E is changing
+        # over time, and then modify that strength, but not
         # the direction of of the force vector, as a a function
         # of how fast the strength of E is changing! aka
-        # d(magnatude(e))/dt.
+        # d(magnitude(e))/dt.
 
-        # Calculate D|e|/dt and make magenetic force
+        # Calculate D|e|/dt and make magnetic force
         # Nothing more than an increase in the ES force based
         # on D|e|/dt.
         # This is a very different approach, but yet seems like
         # it could produces
         # the same sort of results for current -- aka the
-        # sum of many electons moving at once.  But it has
-        # the intersting effect of having no magnetic force
+        # sum of many elections moving at once.  But it has
+        # the interesting effect of having no magnetic force
         # at all when the two particles pass side by side
-        # becuase de/dt = 0 at that point!  Which could be
+        # because de/dt = 0 at that point!  Which could be
         # useful in not messing up orbits!
-        # And it might force eleptical high speed orbits into
+        # And it might force elliptical high speed orbits into
         # circles.
 
         # d|F|/dt = (-2 c^2 1e7 q1 q2 / r^3) v dot rHat
 
-        (r2, l2) = self.distance2(p)
+        r2, l2 = self.distance2(p)
 
         if r2 == 0.0:
             # Should be infinity I guess?
-            return (0.0, 0.0, 0.0)
+            return 0.0, 0.0, 0.0
 
         # relativeV = self.subtract(p.V(), self.V())
         relativeV = self.subtract(self.V(), p.V())
@@ -1141,8 +1140,8 @@ class Particle:
         #         factor *= -1.0  # well, needed to make ep pair push opposit directions!
         #     F = self.product(factor, b)
 
-        # So it's 1e-7 q * q * v * v / r^2 in total whcih gets all the unints
-        # consitent with E. But in the direction of v x r.
+        # So it's 1e-7 q * q * v * v / r^2 in total which gets all the units
+        # consistent with E. But in the direction of v x r.
 
         # if False:
         #     # Try making B driven by dE/dt. The faster E is changing, the
@@ -1195,14 +1194,14 @@ class Particle:
             relativeV = self.subtract(self.V(), p.V())
 
             # Sign of relativeV is of the velcoity of self if the
-            # the velociaty of p is zero.
+            # the velocity of p is zero.
 
             r = (self.x - p.x, self.y - p.y, self.z - p.z)
             rHat = self.product(1.0 / magnitude(r), r)
 
             # r points from p (logically at orign) to self.
 
-            # Magnatude of v in line with r
+            # Magnitude of v in line with r
             vr = self.dot(relativeV, rHat)
 
             vHat = self.product(1.0 / magnitude(relativeV), relativeV)
@@ -1256,13 +1255,13 @@ class Particle:
         #         # print "bHat is", bHat
         #         # print "eForce is", eForce
         #         # es = self.esForce(p)
-        #         # print " esForce is  ", es, magnatude(es)
+        #         # print " esForce is  ", es, magnitude(es)
         #         # print "F    is", F
         #         # sys.exit(1)
 
         return F
 
-    def addEndForce(self, p):
+    def add_end_force(self, p):
         if p is self:
             return
 
@@ -2079,7 +2078,7 @@ while run_me:
             for p1 in world:
                 p1.zeroEndForce()
                 for p2 in world:
-                    p1.addEndForce(p2)
+                    p1.add_end_force(p2)
 
             # totalKE2 = total_end_kinetic_energy(world)
             # totalPE2 = total_end_potential_energy(world)
