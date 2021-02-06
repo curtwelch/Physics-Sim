@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-    physics.py - Atomic particle simulation experments
+    physics.py - Atomic particle simulation experiments
 
     2016-05-18 Started this file.  Took it from xnet.py from my AI work.
     2021-02-05 Created PyCharm Project, Put on Github, converted
@@ -189,7 +189,7 @@ def fast_test():
     sys.exit(1)
 
 
-def neutronGravityTest():
+def neutron_gravity_test():
     # Some experiment on the idea that a neutron is
     # is really a e p pair in orbit.  What would
     # be the attraction between two such systems?
@@ -212,13 +212,13 @@ def neutronGravityTest():
     p2 = Proton(100.0, 0.0, 0.0)
     e2 = Electron(100.0 + closeSpace, 0.0, 0.0)
 
-    gravityForce = 0.0
-    gravityForce += p2.gravityForce(p1)
-    gravityForce += p2.gravityForce(e1)
-    gravityForce += e2.gravityForce(p1)
-    gravityForce += e2.gravityForce(e1)
+    gravity_force = 0.0
+    gravity_force += p2.gravityForce(p1)
+    gravity_force += p2.gravityForce(e1)
+    gravity_force += e2.gravityForce(p1)
+    gravity_force += e2.gravityForce(e1)
 
-    print("Gravity force between two is:", gravityForce)
+    print("Gravity force between two is:", gravity_force)
 
     p2.zeroForce()
     p2.addForce(p1)
@@ -1700,7 +1700,7 @@ def center_of_mass(world):
 
 
 # fastTest()
-# neutronGravityTest()
+# neutron_gravity_test()
 # magneticTest()
 # forceCircleTest()
 # mag_circle_test()
