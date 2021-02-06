@@ -87,7 +87,7 @@ def mag_circle_test():
     for i in range(11):
         x = i * 0.1
         print("For x,y", x, y, end=' ')
-        bTotal = 0.0
+        b_total = 0.0
         steps = 4000
         dl = 2.0 * math.pi / steps
         lastpx = 0.0  # First point
@@ -105,10 +105,10 @@ def mag_circle_test():
             b = 1e-7 * dl / r  # fake for expermenting
             b = 1e-7 * dl / 1.0  # Fake again
             b = 1e-7 * dl / r2  # Real
-            bTotal += b
+            b_total += b
             lastpx = px
             lastpy = py
-        print("total mag field is", bTotal)
+        print("total mag field is", b_total)
     sys.exit(1)
 
     # Conclusion ...
@@ -545,7 +545,7 @@ def magnetic_test2(world, dt=None):
             print(f, end=' ')
             print(magnitude(f))
 
-            totalMagForce = vectorSum(totalMagForce, f)
+            totalMagForce = vector_sum(totalMagForce, f)
 
     print()
     print("Total Mag force:", totalMagForce)
@@ -554,20 +554,20 @@ def magnetic_test2(world, dt=None):
     # zz
 
 
-def crtClear():
+def crt_clear():
     sys.stdout.write("\033[2J")
 
 
-def crtClearAndHome(row=0, col=0):
-    crtClear()
-    crtGOTO(row, col)
+def crt_clear_and_home(row=0, col=0):
+    crt_clear()
+    crt_goto(row, col)
 
 
-def crtGOTO(row, col):
+def crt_goto(row, col):
     sys.stdout.write("\033[%d;%dH" % (row, col))
 
 
-def crtMode(m=None):
+def crt_mode(m=None):
     if m is None:
         m = 0  # normal mode
     elif m == "normal":
@@ -582,13 +582,13 @@ def crtMode(m=None):
         m = 7
 
     if m not in [0, 1, 2, 5, 7]:
-        raise Exception("Invlaid mode")
+        raise Exception("Invalid mode")
 
-    sys.stdout.write("\033[%dm" % (m))
+    sys.stdout.write(f"\033[{m}m")
 
 
 class Particle:
-    # The basic particle code for protons and electrons
+    """ The root class for protons and electrons. """
     def __init__(self, x=0.0, y=0.0, z=0.0):
         # Units all standard SI meters, seconds, Newtons, Kg, Coulombs
         self.x = x
@@ -610,17 +610,17 @@ class Particle:
         self.avgKE = 0.0  # Running average of KE
         self.avgPE = 0.0  # Running average of PE
 
-        self.charge = 0.0   # 1 or -1 defined by subclass for e and p
-        self.mass = 1.0     # Defined in subclass for e and p
+        self.charge = 0.0   # Defined by subclass for e and p
+        self.mass = 0.0     # Defined in subclass for e and p
 
     def R(self):
         return self.x, self.y, self.z
 
     def V(self):
-        return (self.vx, self.vy, self.vz)
+        return self.vx, self.vy, self.vz
 
     def F(self):
-        return (self.fx, self.fy, self.fz)
+        return self.fx, self.fy, self.fz
 
     def zeroForce(self):  # and end force as well
         self.fx = 0.0
@@ -672,7 +672,7 @@ class Particle:
         # on same spot.
 
         if p is self:
-            return (0.0, 0.0, 0.0)
+            return 0.0, 0.0, 0.0
 
         dx = (self.x - p.x)
         dy = (self.y - p.y)
@@ -681,14 +681,13 @@ class Particle:
         r2, l2 = self.distance2(p)
 
         if r2 == 0.0:
-            return (
-            0.0, 0.0, 0.0)  # Bogus but prevents DBZ -- should be infinity
+            return 0.0, 0.0, 0.0  # Bogus but prevents DBZ -- should be infinity
 
         force = self.ke * self.charge * p.charge / r2
 
         r = math.sqrt(r2)
 
-        return (force * dx / r, force * dy / r, force * dz / r)
+        return force * dx / r, force * dy / r, force * dz / r
 
     def gravityForce(self, p):
         G = 6.67408e-11  # 2014 CODATA recommended value
@@ -702,7 +701,7 @@ class Particle:
         x = v1[1] * v2[2] - v1[2] * v2[1]
         y = v1[2] * v2[0] - v1[0] * v2[2]
         z = v1[0] * v2[1] - v1[1] * v2[0]
-        return (x, y, z)
+        return x, y, z
 
     def dot(self, v1, v2):
         # Dot product of two 3d vectors
@@ -731,7 +730,7 @@ class Particle:
         # B = (1e-7 q1 v1 x rHat) / r^2
         # rHat is the unit vector pointing from p to self
 
-        (r2, l2) = self.distance2(p)
+        r2, l2 = self.distance2(p)
 
         if r2 == 0.0:
             return 0.0, 0, 0, 0.0
@@ -913,7 +912,7 @@ class Particle:
             esAdjustF = self.product(magnitude(magF), rHat)
             if self.charge * p.charge < 0:
                 esAdjustF = self.product(-1.0, esAdjustF)
-            F = vectorSum(magF, esAdjustF)
+            F = vector_sum(magF, esAdjustF)
 
             # if False:
             #     print("TotalForce2")
@@ -1462,6 +1461,7 @@ class Particle:
 
 
 class Electron(Particle):
+    """ A Single Electron. """
     def __init__(self, x=0.0, y=0.0, z=0.0):
         Particle.__init__(self, x, y, z)
         self.charge = -1.60218e-19  # in Coulombs
@@ -1594,7 +1594,7 @@ class ParticleImage:
         return pixels * Angstrom / pixelsPerAngstrom
 
 
-def vectorSum(a, b):
+def vector_sum(a, b):
     # breaks if vectors not the same length
     l = max(len(a), len(b))
     s = [0.0] * l
@@ -1603,20 +1603,20 @@ def vectorSum(a, b):
     return tuple(s)
 
 
-def totalMomentum(world):
+def total_momentum(world):
     s = (0.0, 0.0, 0.0)
     for i in range(len(world)):
-        s = vectorSum(s, world[i].momentum())
+        s = vector_sum(s, world[i].momentum())
     return s
 
 
 def total_kinetic_energy(world):
-    totalKE = 0.0
+    total_ke = 0.0
 
     for i in range(len(world)):
-        totalKE += world[i].keneticEnergy()
+        total_ke += world[i].keneticEnergy()
 
-    return totalKE
+    return total_ke
 
 
 def total_potential_energy(world):
@@ -1654,7 +1654,7 @@ def total_end_potential_energy(world):
 
 def zero_momentum(world):
     """ Normalize momentum to zero to freeze frame of reference. """
-    tm = totalMomentum(world)
+    tm = total_momentum(world)
     n = len(world)
     total_mass = 0.0
     for i in range(n):
@@ -1709,28 +1709,29 @@ screen = pygame.display.set_mode(screen_size)
 clock = pygame.time.Clock()
 pygame.display.set_caption('Physics')
 
-p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=10.0)
+p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=1.0)
 e1 = Electron(Angstrom * 0.25, 0.0, 0.0 * Angstrom)
 e2 = Electron(Angstrom * -0.25, 0.0 * Angstrom, 0.0 * Angstrom)
 
-e1.vy = 200000.0
-e1.vy = 100000.0
-e1.vy = 0.0
-e1.vy = 1600000.0
-e1.vy = 16000000.0
-# e1.vx = 800000.0
-e1.vy = 3000000.0
+# e1.vy = 200000.0
+# e1.vy = 100000.0
+# e1.vy = 0.0
+# e1.vy = 1600000.0
+# e1.vy = 16000000.0
+# # e1.vx = 800000.0
+# e1.vy = 3000000.0
 
 # This is what the below calculates for the perfect circular orbit
 # Velocity for the ep pair spaced at 0.25A
-e1.vy = 3181993.44316
-p1.vy = -3181993.44316 * e1.mass / p1.mass
+e1.vy = 3181993.44316 + 100
+# p1.vy = -3181993.44316 * e1.mass / p1.mass
 e2.vy = -3181993.44316
-e2.vz = -3181993.44316 / 10
+# e2.vz = -3181993.44316 / 10
 # e1.vy = p1.vy = 0.0
 # e1.vz = 800000.0
 
 # if False:  # I have no clue what this code does 5-11-2018 CW
+#     # 2021-02-06 it's calculating the velocity of a circular orbit.
 #     r = Angstrom * 0.25
 #     print("r is", r)
 #     r = e1.x - p1.x
@@ -1809,7 +1810,7 @@ if True:
 #     e = 2
 #     percentOfScreen = 0.10
 #     e1 = Electron()  # Just need any particle
-#     monumtum = e1.mass * e1.c / 1000.0
+#     momentum = e1.mass * e1.c / 1000.0
 #     world = []
 #     xwidth = (screen_width * percentOfScreen / pixelsPerAngstrom) * Angstrom
 #     ywidth = (screen_height * percentOfScreen / pixelsPerAngstrom) * Angstrom
@@ -1821,9 +1822,9 @@ if True:
 #         # z = 0.0
 #         p = Proton(x, y, z)
 #         world.append(p)
-#         p.vx = random.random() * monumtum / p.mass
-#         p.vy = random.random() * monumtum / p.mass
-#         p.vz = random.random() * monumtum / p.mass
+#         p.vx = random.random() * momentum / p.mass
+#         p.vy = random.random() * momentum / p.mass
+#         p.vz = random.random() * momentum / p.mass
 #
 #     for i in range(e):
 #         x = random.random() * xwidth
@@ -1832,9 +1833,9 @@ if True:
 #         # z = 0.0
 #         p = Electron(x, y, z)
 #         world.append(p)
-#         p.vx = random.random() * monumtum / p.mass
-#         p.vy = random.random() * monumtum / p.mass
-#         p.vz = random.random() * monumtum / p.mass
+#         p.vx = random.random() * momentum / p.mass
+#         p.vy = random.random() * momentum / p.mass
+#         p.vz = random.random() * momentum / p.mass
 #
 #     for p in world:
 #         piworld.append(ParticleImage(p))
@@ -1915,11 +1916,11 @@ while run_me:
     #  Start of physics simulation step loop
     ###
 
-    crtClearAndHome()
+    crt_clear_and_home()
 
     print()
     print("Time now is %25.40f" % now)
-    print("Total Momentum %8.1e %8.1e %8.1e" % totalMomentum(world))
+    print("Total Momentum %8.1e %8.1e %8.1e" % total_momentum(world))
     print()
     print("doMagnetic:", doMagnetic, "  doMagneticInverse:", doMagneticInverse)
     print()
@@ -1951,7 +1952,7 @@ while run_me:
         screen_width / pixelsPerAngstrom, screen_height / pixelsPerAngstrom))
     print()
 
-    print("Inside Rlimit ", InsideRLimitCount, " pBounce:", pBounceCount,
+    print("Inside R limit ", InsideRLimitCount, " pBounce:", pBounceCount,
           " eBounce:", eBounceCount)
     print()
 
