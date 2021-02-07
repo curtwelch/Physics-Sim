@@ -1,4 +1,0 @@
-Ok, this dir seems to be under control of git
-for both the dir, and the higher Physics-Sim tree.
-
-Created this file to see how this is delt with by Pycharm.
