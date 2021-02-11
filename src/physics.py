@@ -45,8 +45,8 @@ doMagneticInverse = False
 # dt = 2e-18
 # dt = 2e-19
 
-# dtMin = 1e-20
-dtMin = 1e-30
+dtMin = 1e-20
+# dtMin = 1e-30
 
 # dtMax = 1e-10
 dtMax = 1e-1
@@ -616,6 +616,8 @@ class Particle:
         self.c = 299792458.0  # Speed of light m/s -- defined exact constant
         self.ke = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e) written as K(sub)e
         self.ke = self.c * self.c * 1.0e-7  # exactly the same as above
+
+        self.lock_in_place = False    # Don't move if true.
 
         if FakeConstants:
             self.ke = 1.0  # Coulomb's constant (1/4 pi e) written as K(sub)e
@@ -1346,6 +1348,18 @@ class Particle:
         # Save current state as old state
         # Leaves ending force the same as the starting
 
+        if self.lock_in_place:
+            self.vx = 0.0
+            self.vy = 0.0
+            self.vz = 0.0
+            self.fx = 0.0
+            self.fy = 0.0
+            self.fz = 0.0
+            self.end_fx = 0.0
+            self.end_fy = 0.0
+            self.end_fz = 0.0
+            return
+
         self.x = self.end_x
         self.y = self.end_y
         self.z = self.end_z
@@ -1521,7 +1535,7 @@ ResetEnergy = False
 
 class ParticleImage:
     def __init__(self, p):
-        self.p = p  # Particle
+        self.p: Particle = p
 
     def display(self):
 
@@ -1750,13 +1764,30 @@ pygame.display.set_caption('Physics')
     I'm hoping it will it show a wave moving through the string
     even though the simulation uses no time delay for the coulomb
     force moving them.
-"""
+    
+    First calculation.
+    The 10 electrons, passed the energy of the first e to the 9th
+    in this much time.  This is where the KE of the 9th maxed.
+    spacing is 2/10 A so 9 times that is
+    18/10 A in this much time:
+    Time now is 0.0000000000000000243099999999994800664042
+    
+    Output is:
+    Speed: speed=7404360.349, c=299792458.000 speed/c=0.025
 
-pi_world = []
-spacing = .2 * Angstrom
-for cnt in range(10):
+"""
+# speed = ((18/10) * Angstrom) / 0.00000000000000002430999999
+# c = 299792458.0 # spend of light in m/s
+# print(f"Speed: {speed=:.3f}, {c=:.3f} {speed/c=:.3f}")
+# exit()
+
+pi_world: List[ParticleImage] = []
+num = 10
+spacing = (2 / num) * Angstrom
+x_offset = spacing / 2
+for cnt in range(num):
     pi_world.append(ParticleImage(Electron(cnt * spacing, 0.0, 0.0)))
-    print(f"E.x is {pi_world[-1].p.x}")
+pi_world[0].p.lock_in_place = True
 
 # p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=3.0)
 # e1 = Electron(Angstrom * 0.25, 0.0, 0.0 * Angstrom)
@@ -1861,13 +1892,13 @@ for cnt in range(10):
 #     e1 = Electron()  # Just need any particle
 #     momentum = e1.mass * e1.c / 1000.0
 #     world = []
-#     xwidth = (screen_width * percentOfScreen / pixelsPerAngstrom) * Angstrom
-#     ywidth = (screen_height * percentOfScreen / pixelsPerAngstrom) * Angstrom
+#     x_width = (screen_width * percentOfScreen / pixelsPerAngstrom) * Angstrom
+#     y_width = (screen_height * percentOfScreen / pixelsPerAngstrom) * Angstrom
 #
 #     for i in range(p):
-#         x = random.random() * xwidth
-#         y = random.random() * ywidth
-#         z = random.random() * min(xwidth, ywidth)
+#         x = random.random() * x_width
+#         y = random.random() * y_width
+#         z = random.random() * min(x_width, y_width)
 #         # z = 0.0
 #         p = Proton(x, y, z)
 #         world.append(p)
@@ -1876,9 +1907,9 @@ for cnt in range(10):
 #         p.vz = random.random() * momentum / p.mass
 #
 #     for i in range(e):
-#         x = random.random() * xwidth
-#         y = random.random() * ywidth
-#         z = random.random() * min(xwidth, ywidth)
+#         x = random.random() * x_width
+#         y = random.random() * y_width
+#         z = random.random() * min(x_width, y_width)
 #         # z = 0.0
 #         p = Electron(x, y, z)
 #         world.append(p)
@@ -1909,11 +1940,12 @@ for p1 in world:
     p1.zero_force()
     for p2 in world:
         p1.add_force(p2)
-    if True:  # compute static starting force to keep particles in place
+    if True:  # TODO compute static starting force to keep particles in place
         p1.static_fx = - p1.fx
         p1.static_fy = - p1.fy
         p1.static_fz = - p1.fz
     p1.add_static_force()
+world[0].x += x_offset
 
 
 startingTotalKE = total_kinetic_energy(world)
@@ -1925,7 +1957,6 @@ startingTotalPE = total_potential_energy(world)
 
 fps_limit = 60
 run_me = True
-i = 0
 cycleCount = 0.0
 now = 0.0
 energyDiffMax = None
@@ -2039,11 +2070,14 @@ while run_me:
     # Debug print out particle stats
     ###########################################
 
-    totalAvgKE = 0.0
+    total_avg_ke = 0.0
+    total_ke = 0.0
     for i in range(len(world)):
         p1 = world[i]
-        p1.avgKE += (p1.kinetic_energy() - p1.avgKE) * 0.0001
-        totalAvgKE += p1.avgKE
+        ke = p1.kinetic_energy()
+        total_ke += ke
+        p1.avgKE += (ke - p1.avgKE) * 0.0001
+        total_avg_ke += p1.avgKE
 
     for i in range(len(world)):
         p1 = world[i]
@@ -2054,13 +2088,17 @@ while run_me:
               end=' ')
         print("x:%10.5f A" % (p1.x / Angstrom), end=' ')
         # print " KE:%10.2e" % p1.avgKE
-        if totalAvgKE:
-            print(" KE:%6.2f%%" % (p1.avgKE * 100 / totalAvgKE))
+        # if total_avg_ke:
+        #     print(" KE:%6.2f%%" % (p1.avgKE * 100 / total_avg_ke))
+        # else:
+        #     print(" KE:?????")
+        if total_ke:
+            print(" KE:%6.2f%%" % (p1.kinetic_energy() * 100 / total_ke))
         else:
             print(" KE:?????")
 
     print()
-    print("Max Velociety: %5.3fc" % maxVc)
+    print("Max Velocity: %5.3fc" % maxVc)
     print()
 
     ###########################################
