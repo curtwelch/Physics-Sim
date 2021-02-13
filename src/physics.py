@@ -499,8 +499,9 @@ def magnetic_test():
     # sys.exit(1)
 
 
-def magnitude(v):
-    return math.sqrt(v[0] ** 2.0 + v[1] ** 2.0 + v[2] ** 2.0)
+def magnitude(vec: List[float]):
+    """ Compute length of 3D vector. """
+    return math.sqrt(vec[0] ** 2.0 + vec[1] ** 2.0 + vec[2] ** 2.0)
 
 
 def magnetic_test2(world, dt=None):
@@ -752,8 +753,8 @@ class Particle:
     def magnetic_field(self, p):
         # Returns a 3D field vector B = (x,y,z)
         # Calculate the magnetic field created on self, by p.
-        # B = (1e-7 q1 v1 x rHat) / r^2
-        # rHat is the unit vector pointing from p to self
+        # B = (1e-7 q1 v1 x r_hat) / r^2
+        # r_hat is the unit vector pointing from p to self
 
         r2, l2 = self.distance2(p)
 
@@ -762,12 +763,12 @@ class Particle:
 
         # print " distance is", r2, math.sqrt(r2)
 
-        rHat = (self.x - p.x, self.y - p.y, self.z - p.z)
-        rHat = self.product(1.0 / math.sqrt(r2), rHat)
+        r_hat = (self.x - p.x, self.y - p.y, self.z - p.z)
+        r_hat = self.product(1.0 / math.sqrt(r2), r_hat)
 
         # The books say based on current flow, this should be correct:
         # This follows the right hand rule for postive current flow
-        B = self.product(1e-7 * p.charge / r2, self.cross(p.V(), rHat))
+        B = self.product(1e-7 * p.charge / r2, self.cross(p.V(), r_hat))
 
         # This is inverted
         B = self.product(-1.0, B)  # backwards
@@ -822,9 +823,9 @@ class Particle:
         # print "mag force"
         # print " B is", B
 
-        relativeV = self.subtract(self.V(), p.V())
+        relative_v = self.subtract(self.V(), p.V())
 
-        F = self.product(self.charge, self.cross(relativeV, B))
+        F = self.product(self.charge, self.cross(relative_v, B))
 
         return F
 
@@ -1777,17 +1778,20 @@ pygame.display.set_caption('Physics')
 
 """
 # speed = ((18/10) * Angstrom) / 0.00000000000000002430999999
-# c = 299792458.0 # spend of light in m/s
+c = 299792458.0  # spend of light in m/s
 # print(f"Speed: {speed=:.3f}, {c=:.3f} {speed/c=:.3f}")
 # exit()
 
 pi_world: List[ParticleImage] = []
-num = 10
+num = 11
 spacing = (2 / num) * Angstrom
-x_offset = spacing / 2
+# x_offset = spacing / 2
 for cnt in range(num):
     pi_world.append(ParticleImage(Electron(cnt * spacing, 0.0, 0.0)))
-pi_world[0].p.lock_in_place = True
+# pi_world[0].p.lock_in_place = True
+x_offset = 0.0
+pi_world[0].p.vx = .025*c
+# TODO just a marker to find this code
 
 # p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=3.0)
 # e1 = Electron(Angstrom * 0.25, 0.0, 0.0 * Angstrom)
