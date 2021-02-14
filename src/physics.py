@@ -1815,15 +1815,23 @@ c = 299792458.0  # spend of light in m/s
 # exit()
 
 pi_world: List[ParticleImage] = []
-num = 8
-spacing = (2 / num) * Angstrom
-# x_offset = spacing / 2
-for cnt in range(num):
-    pi_world.append(ParticleImage(Electron(cnt * spacing, 0.0, 0.0)))
-# pi_world[0].p.lock_in_place = True
+# num = 8
+# spacing = (2 / num) * Angstrom
+# # x_offset = spacing / 2
+# for cnt in range(num):
+#     pi_world.append(ParticleImage(Electron(cnt * spacing, 0.0, 0.0)))
+# # pi_world[0].p.lock_in_place = True
+# x_offset = 0.0
+# pi_world[0].p.vx = .5*c
+# # TODO just a marker to find this code
 x_offset = 0.0
-pi_world[0].p.vx = .5*c
-# TODO just a marker to find this code
+pi_world.append(ParticleImage(p1 := Proton(0.2*Angstrom, 0.0, 0.0)))
+pi_world.append(ParticleImage(e1 := Electron(0.0*Angstrom, 0.0, 0.0)))
+pi_world.append(ParticleImage(p2 := Proton(0.8*Angstrom, 0.0, 0.0)))
+pi_world.append(ParticleImage(e2 := Electron(0.6*Angstrom, 0.0, 0.0)))
+e1.vy = .005*c
+e2.vy = .004*c
+
 
 # p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=3.0)
 # e1 = Electron(Angstrom * 0.25, 0.0, 0.0 * Angstrom)
@@ -1976,11 +1984,11 @@ for p1 in world:
     p1.zero_force()
     for p2 in world:
         p1.add_force(p2)
-    if True:  # TODO compute static starting force to keep particles in place
+    if False:  # TODO compute static starting force to keep particles in place
         p1.static_fx = - p1.fx
         p1.static_fy = - p1.fy
         p1.static_fz = - p1.fz
-    p1.add_static_force()
+        p1.add_static_force()
 world[0].x += x_offset
 
 
