@@ -17,7 +17,7 @@ import math
 # import numpy as np
 # import matplotlib.pyplot as plt
 from operator import attrgetter
-from typing import List
+from typing import List, Tuple
 
 # import os
 import pygame
@@ -38,14 +38,14 @@ pBounceCount = 0
 
 FakeConstants = False
 
-doMagnetic = False
+doMagnetic = True
 doMagneticInverse = False
 
 # dt = 2e-17
 # dt = 2e-18
 # dt = 2e-19
 
-dtMin = 1e-20
+dtMin = 1e-30
 # dtMin = 1e-30
 
 # dtMax = 1e-10
@@ -499,7 +499,7 @@ def magnetic_test():
     # sys.exit(1)
 
 
-def magnitude(vec: List[float]):
+def magnitude(vec: Tuple[float, float, float]):
     """ Compute length of 3D vector. """
     return math.sqrt(vec[0] ** 2.0 + vec[1] ** 2.0 + vec[2] ** 2.0)
 
@@ -693,8 +693,8 @@ class Particle:
     def es_force(self, p):
         # Electrostatic force between self and p per coulomb's law.
         # Force on self, caused by p.
-        # real force, not Rlimit limited force
-        # Returns 0,0,0 instead of infinity for two particls located
+        # real force, not R limit limited force
+        # Returns 0,0,0 instead of infinity for two particles located
         # on same spot.
 
         if p is self:
@@ -730,15 +730,17 @@ class Particle:
         return x, y, z
 
     def dot(self, v1, v2):
-        # Dot product of two 3d vectors
-        # returns a magnitude value
-        sum = 0.0
+        """
+        Dot product of two 3d vectors
+        returns a magnitude value
+        """
+        sum_product = 0.0
         if len(v1) != len(v2):
             print("Vectors of different length in dot()", v1, v2)
             sys.exit(1)
         for i in range(len(v1)):
-            sum += v1[i] * v2[i]
-        return sum
+            sum_product += v1[i] * v2[i]
+        return sum_product
 
     def product(self, s, v):
         # Multiply a scalar times a 3D vector and return a vector
@@ -830,7 +832,9 @@ class Particle:
         return F
 
     def magnetic_force_total(self, p, dt=None):
-        return self.magnetic_force_total5(p, dt)
+        return self.magnetic_force_total6(p, dt)
+
+        # return self.magnetic_force_total5(p, dt)
 
         # Total force on self, caused by relative self and p velocity
         # Combine the calculation of total force into one simpler formula.
@@ -1203,7 +1207,7 @@ class Particle:
         if True:
             # Total5(C) -- third attempt coded in total5.
             # Ok, figured out we can not use vxr as the direction
-            # of B. It makes equal and opposit impossible for ++ and --
+            # of B. It makes equal and opposite impossible for ++ and --
             # paris.  But making V in the plane with v and r, while
             # 90 deg to E is possible.  So lets do that!  We already
             # tried a version of this in Total2()  But we return.
@@ -1213,23 +1217,23 @@ class Particle:
             # makes them serve away BTW and not run into each other.
             # I would think.
 
-            # Think of p is being at the orign standing still.
+            # Think of p is being at the origin standing still.
             # self particles is elsewhere and moving.
 
-            relativeV = self.subtract(self.V(), p.V())
+            relative_v = self.subtract(self.V(), p.V())
 
-            # Sign of relativeV is of the velcoity of self if the
+            # Sign of relativeV is of the velocity of self if the
             # the velocity of p is zero.
 
             r = (self.x - p.x, self.y - p.y, self.z - p.z)
             rHat = self.product(1.0 / magnitude(r), r)
 
-            # r points from p (logically at orign) to self.
+            # r points from p (logically at origin) to self.
 
             # Magnitude of v in line with r
-            vr = self.dot(relativeV, rHat)
+            vr = self.dot(relative_v, rHat)
 
-            vHat = self.product(1.0 / magnitude(relativeV), relativeV)
+            vHat = self.product(1.0 / magnitude(relative_v), relative_v)
             bHat = self.cross(self.cross(vHat, rHat), rHat)
             bMag = magnitude(bHat)
             if bMag != 0.0:
@@ -1266,7 +1270,7 @@ class Particle:
             #     print(" F dot rHat  ", self.dot(F, rHat))
 
         # if False:
-        #     # Hard Code fake mag force at 90 deg to v and r for an electon
+        #     # Hard Code fake mag force at 90 deg to v and r for an electron
         #     # only, at 1/2 the force of E.
         #     F = (0.0, 0.0, 0.0)
         #     if isinstance(self, Electron):
@@ -1284,6 +1288,34 @@ class Particle:
         #         # print "F    is", F
         #         # sys.exit(1)
 
+        return F
+
+    def magnetic_force_total6(self, p: 'Particle', dt=None):
+        """ 2021-02-13 New idea.
+            At least I hope it's new.  It was years ago I did the others.
+            Use the velocity which the two particles are approaching to define
+            the magnetic force.  Make the magnetic force act in the same line
+            as the column force, but make it slow down velocity. So as to limit
+            V to be the speed of light.  If V == c, then the magnetic force
+            is just the opposite of the Coulomb force amd cancels it out.
+            TODO working on this
+        """
+        relative_v = self.subtract(self.V(), p.V())
+        r = (self.x - p.x, self.y - p.y, self.z - p.z)
+        r_hat = self.product(1.0 / magnitude(r), r)
+        # r points from p (logically at origin) to self.
+        # r_hat is the unit vector pointing the same way.
+
+        # Magnitude of v in line with r
+        vr = self.dot(relative_v, r_hat)
+        # vr is the magnitude (and sign) of the relative velocity from
+        # p to self.
+        es_f_mag = magnitude(self.es_force(p))
+        F = self.product(es_f_mag * (-vr) / p.c, r_hat)
+        # First try at coding it:
+        # v_mag = magnitude(relative_v)
+        # print(f"{vr=:.3f} {v_mag=:.3f}")
+        # F = self.product(-v_mag / p.c, es_f) # reduces es_force per abs(speed)
         return F
 
     def add_end_force(self, p):
@@ -1783,14 +1815,14 @@ c = 299792458.0  # spend of light in m/s
 # exit()
 
 pi_world: List[ParticleImage] = []
-num = 11
+num = 8
 spacing = (2 / num) * Angstrom
 # x_offset = spacing / 2
 for cnt in range(num):
     pi_world.append(ParticleImage(Electron(cnt * spacing, 0.0, 0.0)))
 # pi_world[0].p.lock_in_place = True
 x_offset = 0.0
-pi_world[0].p.vx = .025*c
+pi_world[0].p.vx = .5*c
 # TODO just a marker to find this code
 
 # p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=3.0)
