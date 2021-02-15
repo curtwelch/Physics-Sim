@@ -49,7 +49,8 @@ dtMin = 1e-30
 # dtMin = 1e-30
 
 # dtMax = 1e-10
-dtMax = 1e-1
+# dtMax = 1e-1
+dtMax = 1e-18
 
 dt = dtMin
 dtAdjust = True
@@ -609,9 +610,9 @@ class Particle:
         self.end_fy = 0.0
         self.end_fz = 0.0
         self.c = 299792458.0  # Speed of light m/s -- defined exact constant
-        self.ke = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e) written as K(sub)e
-        self.ke = self.c * self.c * 1.0e-7  # exactly the same as above
-
+        # self.ke = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e) written as K(sub)e
+        # self.ke = self.c * self.c * 1.0e-7  # exactly the same as above
+        self.ke = 8.9875517923e9    # new definition? 8.9875517923(14)×10^9
         self.lock_in_place = False    # Don't move if true.
 
         if FakeConstants:
@@ -625,6 +626,7 @@ class Particle:
         self.symbol = 'e'   # Defined in subclass for e and p
 
     def R(self):
+        """ 3D location tuple. """
         return self.x, self.y, self.z
 
     def V(self):
@@ -1819,11 +1821,10 @@ pi_world: List[ParticleImage] = []
 # # TODO just a marker to find this code
 pi_world.append(ParticleImage(p1 := Proton(0.2*Angstrom, 0.0, 0.0)))
 pi_world.append(ParticleImage(e1 := Electron(0.0*Angstrom, 0.0, 0.0)))
-pi_world.append(ParticleImage(p2 := Proton(0.8*Angstrom, 0.0, 0.0)))
-pi_world.append(ParticleImage(e2 := Electron(0.6*Angstrom, 0.0, 0.0)))
-e1.vy = .005*c
-e2.vy = .004*c
-
+# pi_world.append(ParticleImage(p2 := Proton(0.8*Angstrom, 0.0, 0.0)))
+# pi_world.append(ParticleImage(e2 := Electron(0.6*Angstrom, 0.0, 0.0)))
+e1.vy = .011*c
+# e2.vy = .011*c
 
 # p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=3.0)
 # e1 = Electron(Angstrom * 0.25, 0.0, 0.0 * Angstrom)
@@ -2120,20 +2121,64 @@ while run_me:
         sys.stdout.write(p1.symbol)
         vc = magnitude(p1.V()) / p1.c
         maxVc = max(maxVc, vc)
-        print("%d vx:%10.2e  vy:%10.2e %0.7fc" % (i, p1.vx, p1.vy, vc),
+        print("%d vx:%10.2e  vy:%10.2e %0.5fc" % (i, p1.vx, p1.vy, vc),
               end=' ')
-        print("x:%10.5f A" % (p1.x / Angstrom), end=' ')
+        print("x:%6.2f A" % (p1.x / Angstrom), end=' ')
         # print " KE:%10.2e" % p1.avgKE
         # if total_avg_ke:
         #     print(" KE:%6.2f%%" % (p1.avgKE * 100 / total_avg_ke))
         # else:
         #     print(" KE:?????")
         if total_ke:
-            print(" KE:%8.4f%%" % (p1.kinetic_energy() * 100 / total_ke), end='')
+            print(" KE:%5.1f%%" % (p1.kinetic_energy() * 100 / total_ke), end='')
         else:
-            print(" KE:?????", end='')
+            print(" KE:?", end='')
         momentum = magnitude(p1.V()) * p1.mass
-        print(f"  p:{momentum:.3e}", end='')
+        print(f"  p:{momentum:.2e}", end='')
+
+        # Frequency of electron in orbit.
+        if isinstance(p1, Electron):
+            # Just assume it's in a circular orbit about a proton.
+            # Given it's velocity, what is its orbital frequency?
+            # Centripetal force is mv²/r. r is to center of mass.
+            # Coulomb force is kqq / d² ... d is between particles
+            # d = r + r * me / mp
+            # d = r(1 + me/mp)
+            # j = (1+me/mp)
+            # d = rj
+            # c force = kq²/r²j²
+            # When these two are equal, we have a circular orbit.
+            # kq²/r²j² = mv²/r  solving for r
+            # kq²/j² = mv²r
+            # r = kq²/mv²j²
+            # The length of the orbit is c = πd, or 2πr.
+            # cycles per second is distance/time so, d is c.
+            # freq is laps per second.  We have v in m per second.
+            # So we convert m/s to laps per second by dividing...
+            # v / (distance of one lap).
+            # freq = v / (2πr)
+            # freq = v / (2πkq² / mv²j²)
+            # freq = mv³j² / 2πkq²
+
+            v = magnitude(p1.V())
+            j = 1.0 + Electron().mass / Proton().mass
+            r = (p1.ke * p1.charge**2) / (p1.mass * v**2 * j**2)
+            d = r*j
+            f = p1.mass * magnitude(p1.V())**3 * j**2 /  \
+                (2.0 * math.pi * p1.ke * p1.charge**2)
+            print(f" f:{f/1_000_000_000_000_000:.1e} PHz", end='')
+            print(f" wl:{c*1e9/f:.3e} nm", end='')  # wave length
+            # print(f" d calc:{d / Angstrom:.4e} A", end='')
+            print()
+            # print(f" r calc:{r / Angstrom:.4e} A")
+            # print(f"j² calc:{j**2:.6f} ")
+            # if i > 0:
+            #     # calculate actual distance from e to p
+            #     p_prev = world[i-1]
+            #     rd = magnitude(p1.subtract(p_prev.R(), p1.R()))
+            #     print(f"     rd:{rd / Angstrom:.4e} A")
+            #     print(f" d err:{(rd-d)/Angstrom:+.4e} A")
+            #     print("  DT is: %4.1e" % dt)
         print()
 
     # print()
