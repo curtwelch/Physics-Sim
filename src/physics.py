@@ -17,7 +17,7 @@ import math
 # import numpy as np
 # import matplotlib.pyplot as plt
 from operator import attrgetter
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 # import os
 import pygame
@@ -1821,13 +1821,13 @@ pi_world: List[ParticleImage] = []
 # # TODO just a marker to find this code
 pi_world.append(ParticleImage(p1 := Proton(0.2*Angstrom, 0.0, 0.0)))
 pi_world.append(ParticleImage(p2 := Proton(0.5*Angstrom, 0.0, 0.0)))
-pi_world.append(ParticleImage(p3 := Proton(1.0*Angstrom, 0.0, 0.0)))
+pi_world.append(ParticleImage(p3 := Proton(1.0*Angstrom, 0.1*Angstrom, 0.0)))
 
 pi_world.append(ParticleImage(e1 := Electron(0.0*Angstrom, 0.0, 0.0)))
 e1.vy = .011*c
 pi_world.append(ParticleImage(e2 := Electron(0.8*Angstrom, 0.0, 0.0)))
 e2.vy = .011*c
-pi_world.append(ParticleImage(e3 := Electron(0.0*Angstrom, 0.0, 0.2)))
+pi_world.append(ParticleImage(e3 := Electron(0.0*Angstrom, 0.4*Angstrom, 0.2*Angstrom)))
 
 # p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=3.0)
 # e1 = Electron(Angstrom * 0.25, 0.0, 0.0 * Angstrom)
@@ -2006,6 +2006,8 @@ lastNow = now
 lastV = 0.0
 lastA = 0.0
 
+p_pair_last_distance: Dict[Tuple[float, float], Tuple[float, float]] = {}
+
 while run_me:
     clock.tick(fps_limit)
     for event in pygame.event.get():
@@ -2098,8 +2100,14 @@ while run_me:
             p2 = world[j]
             if not isinstance(p2, Proton):
                 continue
+            d = p1.distance(p2)[0]
+            pair = (i, j)
+            last_d, last_time = p_pair_last_distance.get(pair, (d, now-dt))
+            p_pair_last_distance[pair] = (d, now)  # save for next time
+            v = (d-last_d) / (now-last_time)    # positive v if moving away
             print("Distance between", end=' ')
-            print("P%02d P%02d %11.6f" % (i, j, p1.distance(p2)[0] / Angstrom))
+            print(f"P{i:02d} P{j:02d} {d/Angstrom:11.6f} A", end='')
+            print(f"   v:{v:+.2e}")
             cnt += 1
             if cnt > 10:
                 break
