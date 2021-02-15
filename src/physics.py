@@ -1820,11 +1820,14 @@ pi_world: List[ParticleImage] = []
 # pi_world[0].p.vx = .5*c
 # # TODO just a marker to find this code
 pi_world.append(ParticleImage(p1 := Proton(0.2*Angstrom, 0.0, 0.0)))
+pi_world.append(ParticleImage(p2 := Proton(0.5*Angstrom, 0.0, 0.0)))
+pi_world.append(ParticleImage(p3 := Proton(1.0*Angstrom, 0.0, 0.0)))
+
 pi_world.append(ParticleImage(e1 := Electron(0.0*Angstrom, 0.0, 0.0)))
-# pi_world.append(ParticleImage(p2 := Proton(0.8*Angstrom, 0.0, 0.0)))
-# pi_world.append(ParticleImage(e2 := Electron(0.6*Angstrom, 0.0, 0.0)))
 e1.vy = .011*c
-# e2.vy = .011*c
+pi_world.append(ParticleImage(e2 := Electron(0.8*Angstrom, 0.0, 0.0)))
+e2.vy = .011*c
+pi_world.append(ParticleImage(e3 := Electron(0.0*Angstrom, 0.0, 0.2)))
 
 # p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=3.0)
 # e1 = Electron(Angstrom * 0.25, 0.0, 0.0 * Angstrom)
@@ -1977,7 +1980,8 @@ for p1 in world:
     p1.zero_force()
     for p2 in world:
         p1.add_force(p2)
-    # if False:  # TODO compute static starting force to keep particles in place
+    # if False:
+    #     # compute static starting force to keep particles in place
     #     p1.static_fx = - p1.fx
     #     p1.static_fy = - p1.fy
     #     p1.static_fz = - p1.fz
@@ -2169,7 +2173,7 @@ while run_me:
             print(f" f:{f/1_000_000_000_000_000:.1e} PHz", end='')
             print(f" wl:{c*1e9/f:.3e} nm", end='')  # wave length
             # print(f" d calc:{d / Angstrom:.4e} A", end='')
-            print()
+            # print()
             # print(f" r calc:{r / Angstrom:.4e} A")
             # print(f"j² calc:{j**2:.6f} ")
             # if i > 0:
@@ -2181,9 +2185,7 @@ while run_me:
             #     print("  DT is: %4.1e" % dt)
         print()
 
-    # print()
     print("Max Velocity: %5.3fc" % maxVc)
-    print()
 
     ###########################################
     # Debug center of mass of pairs for
