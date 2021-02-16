@@ -42,10 +42,6 @@ FakeConstants = False
 doMagnetic = True
 doMagneticInverse = False
 
-# dt = 2e-17
-# dt = 2e-18
-# dt = 2e-19
-
 dtMin = 1e-30
 # dtMin = 1e-30
 
@@ -53,10 +49,9 @@ dtMin = 1e-30
 # dtMax = 1e-1
 dtMax = 1e-18
 
-DT = dtMin
-dtAdjust = True
+dtAdjust = True     # Auto adjust dt time step based on error
 
-energyFix = False  # fix based on total PE+KE at start -- doesn't work when magnetism added
+energyFix = False   # fix based on total PE+KE at start
 energyFix2 = False
 
 # screen_size = screen_width, screen_height = 1000, 800
@@ -525,7 +520,7 @@ def magnetic_test2(world):
 
     for i in range(len(world)):
         p1 = world[i]
-        print("ES  Total Force on %s%d" % (p1.symbol, i), p1.f())
+        print("ES  Total Force on %s%d" % (p1.symbol, i), p1.dt())
 
     total_mag_force = (0.0, 0.0, 0.0)
 
@@ -1996,6 +1991,8 @@ class Simulation:
         self.starting_total_ke = self.total_ke
         self.starting_total_pe = self.total_pe
 
+        self.dt = dtMin
+
         self.screen = pygame.display.set_mode(screen_size)
         self.clock = pygame.time.Clock()
         pygame.display.set_caption('Physics hey!')
@@ -2015,7 +2012,7 @@ class Simulation:
     def run(self):
         """ Run the simulation. """
 
-        global ResetEnergy, DT
+        global ResetEnergy
         while self.run_me:
             self.clock.tick(self.fps_limit)
             for event in pygame.event.get():
@@ -2058,7 +2055,8 @@ class Simulation:
             print("Screen (%.1fx%.1f) A" % (
                 screen_width / pixelsPerAngstrom, screen_height / pixelsPerAngstrom))
             print(f"Time now is {self.now*1000_000_000:.20f} ns", end='')
-            print("  DT is: %4.1e" % DT)
+
+            print("  DT is: %4.1e" % self.dt)
             p_vec = total_momentum(self.world)
             print("Total Momentum %8.1e %8.1e %8.1e" % p_vec, end='')
             print(f"   mag: {magnitude(p_vec):.1e}")
@@ -2110,7 +2108,7 @@ class Simulation:
                         continue
                     d = p1.distance(p2)[0]
                     pair = (i, j)
-                    last_d, last_time = self.p_pair_last_distance.get(pair, (d, self.now - DT))
+                    last_d, last_time = self.p_pair_last_distance.get(pair, (d, self.now - self.dt))
                     self.p_pair_last_distance[pair] = (d, self.now)  # save for next time
                     v = (d-last_d) / (self.now-last_time)    # positive v if moving away
                     print("Distance between", end=' ')
@@ -2261,13 +2259,13 @@ class Simulation:
                 # At this point, all particles have a known position and velocity
                 # and the force is calculated to match the position.  Ending force
                 # is also set to match the current force but will be updated.
-        
+
                 for it in range(3):
                     # print "begin iteration", it
                     for i in range(len(self.world)):
                         p1 = self.world[i]
-                        p1.calculate_end_velocity(DT)
-                        p1.calculate_end_position(DT)
+                        p1.calculate_end_velocity(self.dt)
+                        p1.calculate_end_position(self.dt)
         
                     # Update ending force based on ending position calculated above.
                     # Ending position is a function of ending force so when we update
@@ -2298,7 +2296,7 @@ class Simulation:
         
                     for i in range(len(self.world)):
                         p1 = self.world[i]
-                        p1.calculate_end_velocity(DT)
+                        p1.calculate_end_velocity(self.dt)
         
                 # Now calculate total Energy after that would result if we take this
                 # move
@@ -2343,20 +2341,20 @@ class Simulation:
                 if dtAdjust and total_ke2 != 0.0:
                     # print "==DO DT ADJUST self.cycleCount", self.cycleCount, "abs(energy_diff)", abs(energy_diff),
                     # print "total_ke2", total_ke2, "percent", abs(energy_diff) / total_ke2
-                    if DT < dtMax and self.cycle_count > 3 and abs(
+                    if self.dt < dtMax and self.cycle_count > 3 and abs(
                             energy_diff) / total_ke2 < 0.0001:
                         # print "SPEEDUP -- increase DT abs(diff)/total is", abs(energy_diff) / total_ke2
-                        DT *= 2.0
-                        DT = min(DT, dtMax)
+                        self.dt *= 2.0
+                        self.dt = min(self.dt, dtMax)
                         # self.cycleCount = 0
                         # continue
                         # No need to restart -- take this move as fine but use a larger dt
                         # for the next move
         
-                    elif DT > dtMin and abs(energy_diff) / total_ke2 > 0.001:
+                    elif self.dt > dtMin and abs(energy_diff) / total_ke2 > 0.001:
                         # print "SLOWDOWN -- reduce DT abs(diff)/total is", abs(energy_diff) / total_ke2
-                        DT /= 2.0
-                        DT = max(DT, dtMin)
+                        self.dt /= 2.0
+                        self.dt = max(self.dt, dtMin)
                         for p1 in self.world:
                             p1.reset_state()
                         self.cycle_count = 0
@@ -2379,7 +2377,7 @@ class Simulation:
             # print
             # print "MOVE MADE -------------------------------------------"
         
-            self.now += DT
+            self.now += self.dt
         
             ######################################################################
             # Fix total energy error
