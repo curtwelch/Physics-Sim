@@ -10,9 +10,9 @@ into something others can look at and play with and use for their own
 experiments.  I also hope to find the time to write up and document the things
 I have learned.
 
-### Example Run
+### Example Output
 
-[Example run as a gif](images/Physics-Sim.gif)
+![Example run as a gif](images/Physics-Sim.gif)
 
 ### Overview and Background
 
