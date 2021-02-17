@@ -10,6 +10,10 @@ into something others can look at and play with and use for their own
 experiments.  I also hope to find the time to write up and document the things
 I have learned.
 
+### Example Run
+
+[Screen Recording](images/Screen Recording 2021-02-17 at 11.39.56 AM.mov)
+
 ### Overview and Background
 
 This project started around 2016 as a quick and dirty exploration of some ideas
