@@ -12,7 +12,7 @@ I have learned.
 
 ### Example Run
 
-[Screen Recording](images/Screen Recording 2021-02-17 at 11.39.56 AM.mov)
+[Example run as a gif](images/Physics-Sim.gif)
 
 ### Overview and Background
 
