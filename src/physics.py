@@ -1292,7 +1292,6 @@ class Particle:
             as the column force, but make it slow down velocity. So as to limit
             V to be the speed of light.  If V == c, then the magnetic force
             is just the opposite of the Coulomb force amd cancels it out.
-            TODO working on this
         """
         relative_v = subtract(self.v(), p.v())
         r = (self.x - p.x, self.y - p.y, self.z - p.z)
@@ -1806,10 +1805,11 @@ def sol_test():
     #     pi_world.append(ParticleImage(Electron(cnt * spacing, 0.0, 0.0)))
     # # pi_world[0].p.lock_in_place = True
     # pi_world[0].p.vx = .5*c
-    # # TODO just a marker to find this code
+    # # TODO - just a marker to find this code
     world: List[Particle] = [Proton(0.2 * Angstrom, 0.0, 0.0),
                              Proton(0.5 * Angstrom, 0.0, 0.0),
                              Proton(1.0 * Angstrom, 0.1 * Angstrom, 0.0),
+                             Proton(1.2 * Angstrom, 0.1 * Angstrom, 1.0 * Angstrom),
                              ]
     e1 = Electron(0.0 * Angstrom, 0.0, 0.0)
     world.append(e1)
@@ -1818,6 +1818,7 @@ def sol_test():
     world.append(e2)
     e2.vy = .011 * CONST_C
     world.append(Electron(0.0 * Angstrom, 0.4 * Angstrom, 0.2 * Angstrom))
+    world.append(Electron(0.0 * Angstrom, 0.1 * Angstrom, 0.2 * Angstrom))
 
     sim = Simulation(world)
     sim.run()
