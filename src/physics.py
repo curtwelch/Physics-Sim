@@ -1293,6 +1293,7 @@ class Particle:
             V to be the speed of light.  If V == c, then the magnetic force
             is just the opposite of the Coulomb force amd cancels it out.
         """
+        # TODO verify this is working as expected -- symmetric on both sides ie.
         relative_v = subtract(self.v(), p.v())
         r = (self.x - p.x, self.y - p.y, self.z - p.z)
         r_hat = product(1.0 / magnitude(r), r)
@@ -1330,6 +1331,7 @@ class Particle:
         self.end_fz += force * dz / r
 
         if doMagnetic:
+            # TODO BROKEN!  Should be using end_ positions but is not!
             f = self.magnetic_force_total(p)
             self.end_fx += f[0]
             self.end_fy += f[1]
@@ -1556,14 +1558,18 @@ class Proton(Particle):
             self.mass = 1.672621898e-27 / 9.10938356e-31  # units for mass e == 1.0
 
 
-ResetEnergy = False
-
-
 class ParticleImage:
-    def __init__(self, p):
+    """" Particle that can draw itself on screen. """
+    # TODO -- bad way to factor this, do it better
+    def __init__(self, p: Particle):
         self.p: Particle = p
 
-    def display(self, screen, world):
+    def draw_particle(self, screen, world):
+        """ Draw Particle on Screen.
+            Implement bounce logic.
+            returns: True if energy reset is needed
+        """
+        # TODO bounce logic shouldn't be a draw routine.
         x = self.space_to_pixels(self.p.x)
         y = self.space_to_pixels(self.p.y)
         z = self.space_to_pixels(self.p.z)
@@ -1580,49 +1586,55 @@ class ParticleImage:
         size *= (z / float(screen_depth)) * (max_scale - min_scale) + min_scale
         size = abs(int(size))
 
-        inset = 10
+        inset = 10          # Bounce at 10 pixels from edge of screen
         if isinstance(self.p, Proton):
             inset = 40
 
-        # e_change = 0.25
-        e_change = 1.00
+        # e_change = 0.25   # Remove energy on bounce
+        e_change = 1.00     # Don't remove energy on bounce
 
-        global ResetEnergy
+        reset_energy_needed = False
         bounce = False
+
         if x < inset and self.p.vx < 0:
             self.p.vx *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            ResetEnergy = True
+            reset_energy_needed = True
             self.p.x = self.pixels_to_space(inset)
             bounce = True
+
         if x > screen_width - inset and self.p.vx > 0:
             self.p.vx *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            ResetEnergy = True
+            reset_energy_needed = True
             self.p.x = self.pixels_to_space(screen_width - inset)
             bounce = True
+
         if y < inset and self.p.vy < 0:
             self.p.vy *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            ResetEnergy = True
+            reset_energy_needed = True
             self.p.y = self.pixels_to_space(inset)
             bounce = True
+
         if y > screen_height - inset and self.p.vy > 0:
             self.p.vy *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            ResetEnergy = True
+            reset_energy_needed = True
             self.p.y = self.pixels_to_space(screen_height - inset)
             bounce = True
+
         if z < inset and self.p.vz < 0:
             self.p.vz *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            ResetEnergy = True
+            reset_energy_needed = True
             self.p.z = self.pixels_to_space(inset)
             bounce = True
+
         if z > screen_depth - inset and self.p.vz > 0:
             self.p.vz *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            ResetEnergy = True
+            reset_energy_needed = True
             self.p.z = self.pixels_to_space(screen_depth - inset)
             bounce = True
 
@@ -1648,13 +1660,15 @@ class ParticleImage:
         # below to turn Bounce flag off if e_change is 1.00
 
         if e_change == 1.0:
-            ResetEnergy = False  # Don't reset energy total -- fix it instead
+            reset_energy_needed = False  # Don't reset energy total -- fix it instead
 
         x = self.space_to_pixels(self.p.x)
         y = self.space_to_pixels(self.p.y)
 
         # print "x y is", x, y
         pygame.draw.circle(screen, color, (x, y), size, 0)
+
+        return reset_energy_needed
 
     @staticmethod
     def space_to_pixels(space):
@@ -2013,378 +2027,67 @@ class Simulation:
     def run(self):
         """ Run the simulation. """
 
-        global ResetEnergy
+        self.run_me = True
+
         while self.run_me:
             self.clock.tick(self.fps_limit)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    # The run_me flag is not needed but I use it
+                    # to prevent false "code unreachable" warnings.
                     self.run_me = False
-        
+                    break
+
             self.screen.fill(WHITE)
-        
-            # zMin = None
-            # zMax = None
-            # for p in pi_world:
-            #     z = p.p.z
-            #     if zMin is None or z < zMin:
-            #         zMin = z
-            #     if zMax is None or z > zMax:
-            #         zMax = z
-        
+
+            reset_energy_needed = False
             s_list = sorted(self.pi_world, key=attrgetter('p.z'))
             for p in s_list:
-                p.display(self.screen, self.world)
-        
-            # if False:
-            #     for p in pi_world:
-            #         if isinstance(p.p, Proton):
-            #             p.display(zMin, zMax)
-            #     for p in pi_world:
-            #         if isinstance(p.p, Electron):
-            #             p.display(zMin, zMax)
-        
-            pygame.display.flip()
-        
-            ###
-            #  Start of physics simulation step loop
-            ###
-        
-            crt_clear_and_home()
-        
-            print()
-            print("PixelsPerAngstrom", pixelsPerAngstrom, end=' ')
-            print("Screen (%.1fx%.1f) A" % (
-                screen_width / pixelsPerAngstrom, screen_height / pixelsPerAngstrom))
-            print(f"Time now is {self.now*1000_000_000:.20f} ns", end='')
+                reset_energy_needed |= p.draw_particle(self.screen, self.world)
 
-            print("  DT is: %4.1e" % self.dt)
-            p_vec = total_momentum(self.world)
-            print("Total Momentum %8.1e %8.1e %8.1e" % p_vec, end='')
-            print(f"   mag: {magnitude(p_vec):.1e}")
-            print()
-            print("doMagnetic:", doMagnetic, "  doMagneticInverse:", doMagneticInverse)
-            print()
+            pygame.display.flip()
 
             self.total_ke = total_kinetic_energy(self.world)
             self.total_pe = total_potential_energy(self.world)
 
-            if ResetEnergy:
-                # Bounce happened on display above
-                # Bounce will remove energy, we need to cope...
+            if reset_energy_needed:
+                # Bounce happened on display above.
+                # If it's configured to reduce energy on a bounce
+                # then we re-define the starting_totals so if we
+                # are using the fix energy system, it will fix it
+                # based on the energy as it is now, not as it was
+                # when the simulation started.
+                # Currently - we aren't removing energy on a bounce
+                # and we aren't using the fix code, so this is not used.
                 self.starting_total_ke = self.total_ke
                 self.starting_total_pe = self.total_pe
-                ResetEnergy = False
-        
-            re = ((self.total_ke - self.starting_total_ke) + (self.total_pe - self.starting_total_pe))
 
-            print("Total ke     %8.1e" % self.total_ke,
-                  "change from last %8.1e" % (self.total_ke - self.last_ke))
-            print("Total pe     %8.1e" % self.total_pe,
-                  "change from last %8.1e" % (self.total_pe - self.last_pe))
-            print("Total    e:  %8.1e" % (self.total_ke + self.total_pe))
-            print("Relative e:  %8.1e" % (re,), end=' ')
-            if self.total_ke:
-                print("  %% of Total ke:%8.4f" % (abs(re * 100.0 / self.total_ke)))
-            else:
-                print()
-            print()
-        
-            # print()
-        
-            print("Inside R limit ", InsideRLimitCount, " pBounce:", pBounceCount,
-                  " eBounce:", eBounceCount)
-            # print()
+            self.print_stats()
 
-            self.last_ke = self.total_ke
-            self.last_pe = self.total_pe
-
-            cnt = 0
-            for i in range(len(self.world)):
-                p1 = self.world[i]
-                if not isinstance(p1, Proton):
-                    continue
-                for j in range(i + 1, len(self.world)):
-                    p2 = self.world[j]
-                    if not isinstance(p2, Proton):
-                        continue
-                    d = p1.distance(p2)[0]
-                    pair = (i, j)
-                    last_d, last_time = self.p_pair_last_distance.get(pair, (d, self.now - self.dt))
-                    self.p_pair_last_distance[pair] = (d, self.now)  # save for next time
-                    v = (d-last_d) / (self.now-last_time)    # positive v if moving away
-                    print("Distance between", end=' ')
-                    print(f"P{i:02d} P{j:02d} {d/Angstrom:11.6f} A", end='')
-                    print(f"   v:{v:+.2e}")
-                    cnt += 1
-                    if cnt > 10:
-                        break
-                if cnt > 10:
-                    break
-            print()
-        
-            ###########################################
-            # Debug print out particle stats
-            ###########################################
-        
-            total_avg_ke = 0.0
-            self.total_ke = 0.0
-            for i in range(len(self.world)):
-                p1 = self.world[i]
-                ke = p1.kinetic_energy()
-                self.total_ke += ke
-                p1.avgKE += (ke - p1.avgKE) * 0.0001
-                total_avg_ke += p1.avgKE
-        
-            for i in range(len(self.world)):
-                p1 = self.world[i]
-                sys.stdout.write(p1.symbol)
-                vc = magnitude(p1.v()) / CONST_C
-                self.maxVc = max(self.maxVc, vc)
-                print("%d vx:%10.2e  vy:%10.2e %0.5fc" % (i, p1.vx, p1.vy, vc),
-                      end=' ')
-                print("x:%6.2f A" % (p1.x / Angstrom), end=' ')
-                # print " KE:%10.2e" % p1.avgKE
-                # if total_avg_ke:
-                #     print(" KE:%6.2f%%" % (p1.avgKE * 100 / total_avg_ke))
-                # else:
-                #     print(" KE:?????")
-                if self.total_ke:
-                    print(" KE:%5.1f%%" % (p1.kinetic_energy() * 100 / self.total_ke), end='')
-                else:
-                    print(" KE:?", end='')
-                momentum = magnitude(p1.v()) * p1.mass
-                print(f"  p:{momentum:.2e}", end='')
-        
-                # Frequency of electron in orbit.
-                if isinstance(p1, Electron):
-                    # Just assume it's in a circular orbit about a proton.
-                    # Given it's velocity, what is its orbital frequency?
-                    # Centripetal force is mv²/r. r is to center of mass.
-                    # Coulomb force is kqq / d² ... d is between particles
-                    # d = r + r * me / mp
-                    # d = r(1 + me/mp)
-                    # j = (1+me/mp)
-                    # d = rj
-                    # c force = kq²/r²j²
-                    # When these two are equal, we have a circular orbit.
-                    # kq²/r²j² = mv²/r  solving for r
-                    # kq²/j² = mv²r
-                    # r = kq²/mv²j²
-                    # The length of the orbit is c = πd, or 2πr.
-                    # cycles per second is distance/time so, d is c.
-                    # freq is laps per second.  We have v in m per second.
-                    # So we convert m/s to laps per second by dividing...
-                    # v / (distance of one lap).
-                    # freq = v / (2πr)
-                    # freq = v / (2πkq² / mv²j²)
-                    # freq = mv³j² / 2πkq²
-        
-                    # v = magnitude(p1.v())
-                    j = 1.0 + Electron().mass / Proton().mass
-                    # r = (p1.ke * p1.charge**2) / (p1.mass * v**2 * j**2)
-                    # d = r*j
-                    f = p1.mass * magnitude(p1.v()) ** 3 * j ** 2 / \
-                        (2.0 * math.pi * p1.ke * p1.charge**2)
-                    print(f" f:{f/1_000_000_000_000_000:.1e} PHz", end='')
-                    print(f" wl:{CONST_C*1e9/f:.3e} nm", end='')  # wave length
-                    # print(f" d calc:{d / Angstrom:.4e} A", end='')
-                    # print()
-                    # print(f" r calc:{r / Angstrom:.4e} A")
-                    # print(f"j² calc:{j**2:.6f} ")
-                    # if i > 0:
-                    #     # calculate actual distance from e to p
-                    #     p_prev = world[i-1]
-                    #     rd = magnitude(p1.subtract(p_prev.R(), p1.R()))
-                    #     print(f"     rd:{rd / Angstrom:.4e} A")
-                    #     print(f" d err:{(rd-d)/Angstrom:+.4e} A")
-                    #     print("  DT is: %4.1e" % dt)
-                print()
-        
-            print("Max Velocity: %5.3fc" % self.maxVc)
-        
-            ###########################################
-            # Debug center of mass of pairs for
-            # special e/p pair drift test
-            ###########################################
-        
-            # lastCm = None
-            # for i in range(len(self.world) - 1):
-            #     p1 = self.world[i]
-            #     p2 = self.world[i + 1]
-            #     if isinstance(p2, Electron) and isinstance(p1, Proton):
-            #         cm = center_of_mass((p1, p2))
-            #         # print("Center of Mass of pair %20.15f %20.15f %20.15f" % (
-            #         #     cm[0] / Angstrom, cm[1] / Angstrom, cm[2] / Angstrom))
-            #         if lastCm is not None:
-            #             d = math.sqrt((cm[0] - lastCm[0]) ** 2 +
-            #                           (cm[1] - lastCm[1]) ** 2 +
-            #                           (cm[2] - lastCm[2]) ** 2)
-            #             # print("Distance is %20.15f" % (d / Angstrom))
-            #             dd = d - last_d
-            #             # print("Change   is %20.15f" % (dd / Angstrom))
-            #             move_dt = self.now - self.last_now
-            #             # print("DT is %20.30f" % move_dt)
-            #             v = 0.0
-            #             if move_dt != 0.0:
-            #                 v = dd / move_dt  # Velocity
-            #                 print(f"M/S is {dd / move_dt:.3e} <0 is moving together")
-            #                 a = (v - self.lastV) / move_dt
-            #                 print(f"Acceleration is {a:+.4e}")
-            #                 self.lastA += (a - self.lastA) * .001
-            #                 print(f"       avg A is {self.lastA:.4e}", end='')
-            #             self.lastV = v
-            #             self.last_now = self.now
-            #             last_d = d
-            #             gravity_force = 0.0
-            #             gravity_force += p1.gravity_force(self.world[i - 1])
-            #             gravity_force += p1.gravity_force(self.world[i - 2])
-            #             gravity_force += p2.gravity_force(self.world[i - 2])
-            #             gravity_force += p2.gravity_force(self.world[i - 1])
-            #             # print("Gravity Force is", gravity_force)
-            #             # es = p1.es_force(p2)
-            #             # print("es from p1 to p2 is", es)
-            #             # es = p1.es_force(self.world[i - 2])
-            #             # print("es from p1 to e2 is", es)
-            #             # print("es from 1 to p4 is", es)
-            #             print(f"  Gravity A is {gravity_force / (p1.mass + p2.mass):.3e}")
-            #         lastCm = cm
-            # print()
-        
             #####################################################################
             # Calculate next position now
             #####################################################################
-        
-            need_error_print = True
-            while True:  # DT restart loop
-        
-                # At this point, all particles have a known position and velocity
-                # and the force is calculated to match the position.  Ending force
-                # is also set to match the current force but will be updated.
 
-                for it in range(3):
-                    # print "begin iteration", it
-                    for i in range(len(self.world)):
-                        p1 = self.world[i]
-                        p1.calculate_end_velocity(self.dt)
-                        p1.calculate_end_position(self.dt)
-        
-                    # Update ending force based on ending position calculated above.
-                    # Ending position is a function of ending force so when we update
-                    # the force, we can then loop back and calculate a new ending
-                    # Position
-        
-                    # Could calculate PE in same loop we use for updating forces
-                    # because it duplicates a lot of the same work, but need to
-                    # restructure code to do that.
-        
-                    for p1 in self.world:
-                        p1.zero_end_force()
-                        for p2 in self.world:
-                            p1.add_end_force(p2)
-                        p1.add_end_static_force()
-        
-                    # total_ke2 = total_end_kinetic_energy(self.world)
-                    # total_pe2 = total_end_potential_energy(self.world)
-                    # curEnergy = total_ke2 + total_pe2
-                    # error = (self.total_ke - total_ke2) + (self.total_pe - total_pe2)
-                    # print "Energy error after iteration     %18.10e" % error
-        
-                if energyFix2:
-        
-                    # Ok, one last time, fudge velocity based on current position and
-                    # total force for this position This is just always good I think.
-                    # Probably shouldn't be an option.
-        
-                    for i in range(len(self.world)):
-                        p1 = self.world[i]
-                        p1.calculate_end_velocity(self.dt)
-        
-                # Now calculate total Energy after that would result if we take this
-                # move
-        
-                total_ke2 = total_end_kinetic_energy(self.world)
-                total_pe2 = total_end_potential_energy(self.world)
-        
-                # energy_diff = (total_ke2 + total_pe2) - (self.total_ke + self.total_pe) # last move
-                # error only
+            energy_diff_start, total_ke2 = self.calculate_next_position()
 
-                # Ah, a computational problem showed up.  When one of the two is many
-                # orders of magnitude different from the other, the accuracy is all
-                # lost in the difference if done the above way vs the way below!
-        
-                energy_diff = (total_ke2 - self.total_ke) + (
-                            total_pe2 - self.total_pe)  # last move error only
-                energy_diff_start = total_ke2 - self.starting_total_ke  # Error from start
-                energy_diff_start += total_pe2 - self.starting_total_pe
-        
-                # print "old KE was", self.total_ke
-                # print "old PE was", self.total_pe
-                # print "new self.total_ke after move is", total_ke2
-                # print "new self.total_pe after move is", total_pe2
-                if need_error_print:
-                    # Only do this once in this loop
-                    print("Energy error for move is %12.4e" % energy_diff, end='')
-                    if self.energy_diff_max is not None:
-                        print(" max error %12.4e" % self.energy_diff_max, end='')
-                    print()
-                    need_error_print = False
-                # print "energy diff from start is", energy_diff_start
-        
-                self.cycle_count += 1
-        
-                # if False and self.cycleCount > 300:
-                # sys.exit(1)
-        
-                ######################################################################
-                # Dynamically change dt to maintain error and maximise simulation speed
-                ######################################################################
-        
-                if dtAdjust and total_ke2 != 0.0:
-                    # print "==DO DT ADJUST self.cycleCount", self.cycleCount, "abs(energy_diff)", abs(energy_diff),
-                    # print "total_ke2", total_ke2, "percent", abs(energy_diff) / total_ke2
-                    if self.dt < dtMax and self.cycle_count > 3 and abs(
-                            energy_diff) / total_ke2 < 0.0001:
-                        # print "SPEEDUP -- increase DT abs(diff)/total is", abs(energy_diff) / total_ke2
-                        self.dt *= 2.0
-                        self.dt = min(self.dt, dtMax)
-                        # self.cycleCount = 0
-                        # continue
-                        # No need to restart -- take this move as fine but use a larger dt
-                        # for the next move
-        
-                    elif self.dt > dtMin and abs(energy_diff) / total_ke2 > 0.001:
-                        # print "SLOWDOWN -- reduce DT abs(diff)/total is", abs(energy_diff) / total_ke2
-                        self.dt /= 2.0
-                        self.dt = max(self.dt, dtMin)
-                        for p1 in self.world:
-                            p1.reset_state()
-                        self.cycle_count = 0
-                        continue
-        
-                if self.energy_diff_max is None:
-                    self.energy_diff_max = energy_diff
-                self.energy_diff_max = max(self.energy_diff_max, abs(energy_diff))
-        
-                break  # End of DT adjust loop
-        
             #####################################################################
             # Make the move -- move current ending state to be the current
             # Also leaves ending force set to same as starting force
             #####################################################################
-        
+
             for p1 in self.world:
                 p1.move()
-        
+
             # print
             # print "MOVE MADE -------------------------------------------"
-        
+
             self.now += self.dt
-        
+
             ######################################################################
             # Fix total energy error
             # Adjust all velocities to remove energy error of energy_diff_start
             ######################################################################
-        
+
             if energyFix:
                 if energy_diff_start > total_ke2:
                     print("energy error greater than total KE error:", energy_diff_start,
@@ -2393,7 +2096,7 @@ class Simulation:
                     # Only try to take half of total KE out of the system
                     # time.sleep(1)
                     # sys.exit(1)
-        
+
                 for i in range(len(self.world)):
                     # print
                     # print "Adjust KE for particle", i, "energy_diff_start error is", energy_diff_start
@@ -2408,6 +2111,312 @@ class Simulation:
                     # print "new KE is now", p1.kinetic_energy()
 
         pygame.quit()
+
+    def print_stats(self):
+        """ Print statistics for this loop. """
+
+        crt_clear_and_home()
+
+        print()
+        print("PixelsPerAngstrom", pixelsPerAngstrom, end=' ')
+        print("Screen (%.1fx%.1f) A" % (
+            screen_width / pixelsPerAngstrom,
+            screen_height / pixelsPerAngstrom))
+        print(f"Time now is {self.now * 1000_000_000:.20f} ns", end='')
+        print("  DT is: %4.1e" % self.dt)
+        p_vec = total_momentum(self.world)
+        print("Total Momentum %8.1e %8.1e %8.1e" % p_vec, end='')
+        print(f"   mag: {magnitude(p_vec):.1e}")
+        print()
+        print("doMagnetic:", doMagnetic, "  doMagneticInverse:",
+              doMagneticInverse)
+        print()
+
+        re = ((self.total_ke - self.starting_total_ke) + (
+                    self.total_pe - self.starting_total_pe))
+        print("Total ke     %8.1e" % self.total_ke,
+              "change from last %8.1e" % (self.total_ke - self.last_ke))
+        print("Total pe     %8.1e" % self.total_pe,
+              "change from last %8.1e" % (self.total_pe - self.last_pe))
+        print("Total    e:  %8.1e" % (self.total_ke + self.total_pe))
+        print("Relative e:  %8.1e" % (re,), end=' ')
+        if self.total_ke:
+            print("  %% of Total ke:%8.4f" % (abs(re * 100.0 / self.total_ke)))
+        else:
+            print()
+        print()
+        # print()
+        print("Inside R limit ", InsideRLimitCount, " pBounce:", pBounceCount,
+              " eBounce:", eBounceCount)
+        # print()
+        self.last_ke = self.total_ke
+        self.last_pe = self.total_pe
+        cnt = 0
+        for i in range(len(self.world)):
+            p1 = self.world[i]
+            if not isinstance(p1, Proton):
+                continue
+            for j in range(i + 1, len(self.world)):
+                p2 = self.world[j]
+                if not isinstance(p2, Proton):
+                    continue
+                d = p1.distance(p2)[0]
+                pair = (i, j)
+                last_d, last_time = self.p_pair_last_distance.get(pair, (
+                    d, self.now - self.dt))
+                self.p_pair_last_distance[pair] = (
+                    d, self.now)  # save for next time
+                v = (d - last_d) / (
+                            self.now - last_time)  # positive v if moving away
+                print("Distance between", end=' ')
+                print(f"P{i:02d} P{j:02d} {d / Angstrom:11.6f} A", end='')
+                print(f"   v:{v:+.2e}")
+                cnt += 1
+                if cnt > 10:
+                    break
+            if cnt > 10:
+                break
+        print()
+
+        self.print_particle_stats()
+
+        print("Max Velocity: %5.3fc" % self.maxVc)
+
+        ###########################################
+        # Debug center of mass of pairs for
+        # special e/p pair drift test
+        ###########################################
+        # lastCm = None
+        # for i in range(len(self.world) - 1):
+        #     p1 = self.world[i]
+        #     p2 = self.world[i + 1]
+        #     if isinstance(p2, Electron) and isinstance(p1, Proton):
+        #         cm = center_of_mass((p1, p2))
+        #         # print("Center of Mass of pair %20.15f %20.15f %20.15f" % (
+        #         #     cm[0] / Angstrom, cm[1] / Angstrom, cm[2] / Angstrom))
+        #         if lastCm is not None:
+        #             d = math.sqrt((cm[0] - lastCm[0]) ** 2 +
+        #                           (cm[1] - lastCm[1]) ** 2 +
+        #                           (cm[2] - lastCm[2]) ** 2)
+        #             # print("Distance is %20.15f" % (d / Angstrom))
+        #             dd = d - last_d
+        #             # print("Change   is %20.15f" % (dd / Angstrom))
+        #             move_dt = self.now - self.last_now
+        #             # print("DT is %20.30f" % move_dt)
+        #             v = 0.0
+        #             if move_dt != 0.0:
+        #                 v = dd / move_dt  # Velocity
+        #                 print(f"M/S is {dd / move_dt:.3e} <0 is moving together")
+        #                 a = (v - self.lastV) / move_dt
+        #                 print(f"Acceleration is {a:+.4e}")
+        #                 self.lastA += (a - self.lastA) * .001
+        #                 print(f"       avg A is {self.lastA:.4e}", end='')
+        #             self.lastV = v
+        #             self.last_now = self.now
+        #             last_d = d
+        #             gravity_force = 0.0
+        #             gravity_force += p1.gravity_force(self.world[i - 1])
+        #             gravity_force += p1.gravity_force(self.world[i - 2])
+        #             gravity_force += p2.gravity_force(self.world[i - 2])
+        #             gravity_force += p2.gravity_force(self.world[i - 1])
+        #             # print("Gravity Force is", gravity_force)
+        #             # es = p1.es_force(p2)
+        #             # print("es from p1 to p2 is", es)
+        #             # es = p1.es_force(self.world[i - 2])
+        #             # print("es from p1 to e2 is", es)
+        #             # print("es from 1 to p4 is", es)
+        #             print(f"  Gravity A is {gravity_force / (p1.mass + p2.mass):.3e}")
+        #         lastCm = cm
+        # print()
+
+    def print_particle_stats(self):
+        total_avg_ke = 0.0
+        self.total_ke = 0.0
+        for i in range(len(self.world)):
+            p1 = self.world[i]
+            ke = p1.kinetic_energy()
+            self.total_ke += ke
+            p1.avgKE += (ke - p1.avgKE) * 0.0001
+            total_avg_ke += p1.avgKE
+        for i in range(len(self.world)):
+            p1 = self.world[i]
+            sys.stdout.write(p1.symbol)
+            vc = magnitude(p1.v()) / CONST_C
+            self.maxVc = max(self.maxVc, vc)
+            print("%d vx:%10.2e  vy:%10.2e %0.5fc" % (i, p1.vx, p1.vy, vc),
+                  end=' ')
+            print("x:%6.2f A" % (p1.x / Angstrom), end=' ')
+            # print " KE:%10.2e" % p1.avgKE
+            # if total_avg_ke:
+            #     print(" KE:%6.2f%%" % (p1.avgKE * 100 / total_avg_ke))
+            # else:
+            #     print(" KE:?????")
+            if self.total_ke:
+                print(" KE:%5.1f%%" % (
+                        p1.kinetic_energy() * 100 / self.total_ke), end='')
+            else:
+                print(" KE:?", end='')
+            momentum = magnitude(p1.v()) * p1.mass
+            print(f"  p:{momentum:.2e}", end='')
+
+            # Frequency of electron in orbit.
+            if isinstance(p1, Electron):
+                # Just assume it's in a circular orbit about a proton.
+                # Given it's velocity, what is its orbital frequency?
+                # Centripetal force is mv²/r. r is to center of mass.
+                # Coulomb force is kqq / d² ... d is between particles
+                # d = r + r * me / mp
+                # d = r(1 + me/mp)
+                # j = (1+me/mp)
+                # d = rj
+                # c force = kq²/r²j²
+                # When these two are equal, we have a circular orbit.
+                # kq²/r²j² = mv²/r  solving for r
+                # kq²/j² = mv²r
+                # r = kq²/mv²j²
+                # The length of the orbit is c = πd, or 2πr.
+                # cycles per second is distance/time so, d is c.
+                # freq is laps per second.  We have v in m per second.
+                # So we convert m/s to laps per second by dividing...
+                # v / (distance of one lap).
+                # freq = v / (2πr)
+                # freq = v / (2πkq² / mv²j²)
+                # freq = mv³j² / 2πkq²
+
+                # v = magnitude(p1.v())
+                j = 1.0 + Electron().mass / Proton().mass
+                # r = (p1.ke * p1.charge**2) / (p1.mass * v**2 * j**2)
+                # d = r*j
+                f = p1.mass * magnitude(p1.v()) ** 3 * j ** 2 / \
+                    (2.0 * math.pi * p1.ke * p1.charge ** 2)
+                print(f" f:{f / 1_000_000_000_000_000:.1e} PHz", end='')
+                print(f" wl:{CONST_C * 1e9 / f:.3e} nm", end='')  # wave length
+                # print(f" d calc:{d / Angstrom:.4e} A", end='')
+                # print()
+                # print(f" r calc:{r / Angstrom:.4e} A")
+                # print(f"j² calc:{j**2:.6f} ")
+                # if i > 0:
+                #     # calculate actual distance from e to p
+                #     p_prev = world[i-1]
+                #     rd = magnitude(p1.subtract(p_prev.R(), p1.R()))
+                #     print(f"     rd:{rd / Angstrom:.4e} A")
+                #     print(f" d err:{(rd-d)/Angstrom:+.4e} A")
+                #     print("  DT is: %4.1e" % dt)
+            print()
+
+    def calculate_next_position(self):
+        need_error_print = True
+        while True:  # DT restart loop
+
+            # At this point, all particles have a known position and velocity
+            # and the force is calculated to match the position.  Ending force
+            # is also set to match the current force but will be updated.
+
+            for it in range(3):
+                # print "begin iteration", it
+                for i in range(len(self.world)):
+                    p1 = self.world[i]
+                    p1.calculate_end_velocity(self.dt)
+                    p1.calculate_end_position(self.dt)
+
+                # Update ending force based on ending position calculated above.
+                # Ending position is a function of ending force so when we update
+                # the force, we can then loop back and calculate a new ending
+                # Position
+
+                # Could calculate PE in same loop we use for updating forces
+                # because it duplicates a lot of the same work, but need to
+                # restructure code to do that.
+
+                for p1 in self.world:
+                    p1.zero_end_force()
+                    for p2 in self.world:
+                        p1.add_end_force(p2)
+                    p1.add_end_static_force()
+
+                # total_ke2 = total_end_kinetic_energy(self.world)
+                # total_pe2 = total_end_potential_energy(self.world)
+                # curEnergy = total_ke2 + total_pe2
+                # error = (self.total_ke - total_ke2) + (self.total_pe - total_pe2)
+                # print "Energy error after iteration     %18.10e" % error
+
+            if energyFix2:
+
+                # Ok, one last time, fudge velocity based on current position and
+                # total force for this position This is just always good I think.
+                # Probably shouldn't be an option.
+
+                for i in range(len(self.world)):
+                    p1 = self.world[i]
+                    p1.calculate_end_velocity(self.dt)
+
+            # Now calculate total Energy after that would result if we take this
+            # move
+
+            total_ke2 = total_end_kinetic_energy(self.world)
+            total_pe2 = total_end_potential_energy(self.world)
+
+            # energy_diff = (total_ke2 + total_pe2) - (self.total_ke + self.total_pe) # last move
+            # error only
+
+            # Ah, a computational problem showed up.  When one of the two is many
+            # orders of magnitude different from the other, the accuracy is all
+            # lost in the difference if done the above way vs the way below!
+
+            energy_diff = (total_ke2 - self.total_ke) + (
+                    total_pe2 - self.total_pe)  # last move error only
+            energy_diff_start = total_ke2 - self.starting_total_ke  # Error from start
+            energy_diff_start += total_pe2 - self.starting_total_pe
+
+            # print "old KE was", self.total_ke
+            # print "old PE was", self.total_pe
+            # print "new self.total_ke after move is", total_ke2
+            # print "new self.total_pe after move is", total_pe2
+            if need_error_print:
+                # TODO this print stuff should not be in the calculation loop.
+                # Only do this once in this loop
+                print("Energy error for move is %12.4e" % energy_diff, end='')
+                if self.energy_diff_max is not None:
+                    print(" max error %12.4e" % self.energy_diff_max, end='')
+                print()
+                need_error_print = False
+            # print "energy diff from start is", energy_diff_start
+
+            self.cycle_count += 1
+
+            ######################################################################
+            # Dynamically change dt to maintain error and maximise simulation speed
+            ######################################################################
+
+            if dtAdjust and total_ke2 != 0.0:
+                # print "==DO DT ADJUST self.cycleCount", self.cycleCount, "abs(energy_diff)", abs(energy_diff),
+                # print "total_ke2", total_ke2, "percent", abs(energy_diff) / total_ke2
+                if self.dt < dtMax and self.cycle_count > 3 and abs(
+                        energy_diff) / total_ke2 < 0.0001:
+                    # print "SPEEDUP -- increase DT abs(diff)/total is", abs(energy_diff) / total_ke2
+                    self.dt *= 2.0
+                    self.dt = min(self.dt, dtMax)
+                    # self.cycleCount = 0
+                    # continue
+                    # No need to restart -- take this move as fine but use a larger dt
+                    # for the next move
+
+                elif self.dt > dtMin and abs(energy_diff) / total_ke2 > 0.001:
+                    # print "SLOWDOWN -- reduce DT abs(diff)/total is", abs(energy_diff) / total_ke2
+                    self.dt /= 2.0
+                    self.dt = max(self.dt, dtMin)
+                    for p1 in self.world:
+                        p1.reset_state()
+                    self.cycle_count = 0
+                    continue
+
+            if self.energy_diff_max is None:
+                self.energy_diff_max = energy_diff
+            self.energy_diff_max = max(self.energy_diff_max, abs(energy_diff))
+
+            break  # End of DT adjust loop
+
+        return energy_diff_start, total_ke2
 
 
 if __name__ == '__main__':
