@@ -10,7 +10,7 @@
 """
 
 # import random
-# import time
+import time
 import sys
 import math
 # import heapq
@@ -1579,7 +1579,8 @@ class Simulation:
     def __init__(self, world: List[Particle]):
         self.world = world
 
-        self.fps_limit = 60
+        self.fps_limit = 5000       # was 60
+        self.fps_avg = 1.0          # Computer speed of simulation
         self.run_me = True
         self.cycle_count = 0
         self.now = 0.0
@@ -1657,8 +1658,12 @@ class Simulation:
         """ Run the simulation. """
 
         self.run_me = True
+        loop_cnt = 0
+        reset_energy_needed = False
+        last_time = time.time()
 
         while self.run_me:
+            loop_cnt += 1
             self.clock.tick(self.fps_limit)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -1667,14 +1672,14 @@ class Simulation:
                     self.run_me = False
                     break
 
-            self.screen.fill(WHITE)
+            now = time.time()
+            loop_time = now - last_time
+            fps = 1/loop_time
+            self.fps_avg += (fps - self.fps_avg) * .01
+            last_time = now
 
-            reset_energy_needed = False
-            s_list = sorted(self.pi_world, key=lambda arg: arg.p.cur_state.r[2])
-            for p in s_list:
-                reset_energy_needed |= p.draw_particle(self.screen, self.world)
-
-            pygame.display.flip()
+            if loop_cnt % 20 == 0:
+                reset_energy_needed = self.draw_world()
 
             self.total_ke = total_kinetic_energy(self.world)
             self.total_pe = total_potential_energy(self.world)
@@ -1691,7 +1696,8 @@ class Simulation:
                 self.starting_total_ke = self.total_ke
                 self.starting_total_pe = self.total_pe
 
-            self.print_stats()
+            if loop_cnt % 40 == 0:
+                self.print_stats()
 
             #####################################################################
             # Calculate next position now
@@ -1738,6 +1744,15 @@ class Simulation:
 
         pygame.quit()
 
+    def draw_world(self):
+        self.screen.fill(WHITE)
+        reset_energy_needed = False
+        s_list = sorted(self.pi_world, key=lambda arg: arg.p.cur_state.r[2])
+        for p in s_list:
+            reset_energy_needed |= p.draw_particle(self.screen, self.world)
+        pygame.display.flip()
+        return reset_energy_needed
+
     def print_stats(self):
         """ Print statistics for this loop. """
 
@@ -1749,7 +1764,9 @@ class Simulation:
             screen_width / pixelsPerAngstrom,
             screen_height / pixelsPerAngstrom))
         print(f"Time now is {self.now * 1000_000_000:.20f} ns", end='')
-        print("  DT is: %4.1e" % self.dt)
+        print("  DT is: %4.1e" % self.dt, end='')
+        print(f"  FPS:{self.fps_avg:.1f}")
+
         p_vec = total_momentum(self.world)
         print(f"Total Momentum {p_vec[0]:8.1e} {p_vec[1]:8.1e} "
               f"{p_vec[2]:8.1e}", end='')
@@ -1971,19 +1988,6 @@ class Simulation:
                     total_pe2 - self.total_pe)  # last move error only
             energy_diff_start = total_ke2 - self.starting_total_ke  # Error from start
             energy_diff_start += total_pe2 - self.starting_total_pe
-
-            if self.cycle_count == 1.1:
-                for p in self.world:
-                    print(f"{p.end_state}")
-                print()
-                print(f"Cycle count {self.cycle_count}")
-                print(f"   energy_diff_last {self.energy_diff_last}")
-                print(f"   total_ke2        {total_ke2}")
-                print(f"{abs(self.energy_diff_last) / total_ke2=}")
-                print()
-                import time
-                while True:
-                    time.sleep(1)
 
             self.cycle_count += 1
 
