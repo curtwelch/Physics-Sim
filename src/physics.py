@@ -14,9 +14,10 @@
 import sys
 import math
 # import heapq
-# import numpy as np
+import numpy as np
+from numpy import ndarray
 # import matplotlib.pyplot as plt
-from operator import attrgetter
+# from operator import attrgetter
 from typing import List, Tuple, Dict
 
 # import os
@@ -26,8 +27,11 @@ BLACK = 0, 0, 0
 WHITE = 255, 255, 255
 RED = 255, 0, 0
 
-Angstrom = 1.0e-10  # One Angstrom 10e-10 meters
-CONST_C = 299792458.0  # Speed of light m/s - defined constant in physics
+Angstrom = 1.0e-10          # One Angstrom 10e-10 meters
+CONST_C = 299792458.0       # Speed of light m/s - defined constant
+# CONST_KE = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e)  K(sub)e
+# CONST_KE = self.c * self.c * 1.0e-7  # OLD?
+CONST_KE = 8.9875517923e9   # Coulomb's constant; New? 8.9875517923(14)×10^9
 
 # RLimit = 0.1 * Angstrom			# Radius limit hack
 # RLimit = 0.0001 * Angstrom		# Radius limit hack
@@ -37,7 +41,6 @@ InsideRLimitCount = 0
 eBounceCount = 0
 pBounceCount = 0
 
-FakeConstants = False
 
 doMagnetic = True
 doMagneticInverse = False
@@ -175,62 +178,62 @@ def force_circle_test():
     # The use of 1/x^2 in physics is consistent with conservation in 3D space.
 
 
-def fast_test():
-    # p1 = Proton(0.0, 00.0, 0.0)
-    p1 = Electron(0.0, 00.0, 0.0)
-    for i in range(60):
-        x = (i - 30) * Angstrom / 10
-        e1 = Electron(x, 0.0, 0.0)
-        print("i", i, "x", x, x / Angstrom, "A", end=' ')
-        print(p1.potential_energy(e1))
+# def fast_test():
+#     # p1 = Proton(0.0, 00.0, 0.0)
+#     p1 = Electron(0.0, 00.0, 0.0)
+#     for i in range(60):
+#         x = (i - 30) * Angstrom / 10
+#         e1 = Electron(x, 0.0, 0.0)
+#         print("i", i, "x", x, x / Angstrom, "A", end=' ')
+#         print(p1.potential_energy(e1))
+#
+#     sys.exit(1)
 
-    sys.exit(1)
 
-
-def neutron_gravity_test():
-    # Some experiment on the idea that a neutron is
-    # is really a e p pair in orbit.  What would
-    # be the attraction between two such systems?
-    # Does it match gravity in relative force?
-    # The answer was the attraction is not even
-    # 1/x^2 in force!  oops.  That theory got blown
-    # out of the water!  The overlapping fields does
-    # create a 1/x^2 field!
-    # UGH -- 5-11-2018 thoughts: but do two systems in
-    # orbit actually end up moving closer together or
-    # further apart due to distorted orbits and orbital
-    # interactions -- this test did not answer that question
-    # and if the effect approximates 1/x^2 then it could be
-    # mistaken as 1/^x^2.  More testing required
-
-    close_space = 0.0001 * Angstrom
-    p1 = Proton(0.0, 0.0, 0.0)
-    e1 = Electron(0.0 + close_space, 0.0, 0.0)
-
-    p2 = Proton(100.0, 0.0, 0.0)
-    e2 = Electron(100.0 + close_space, 0.0, 0.0)
-
-    gravity_force = 0.0
-    gravity_force += p2.gravity_force(p1)
-    gravity_force += p2.gravity_force(e1)
-    gravity_force += e2.gravity_force(p1)
-    gravity_force += e2.gravity_force(e1)
-
-    print("Gravity force between two is:", gravity_force)
-
-    p2.zero_force()
-    p2.add_force(p1)
-    print("em force p2 to p1", p2.fx)
-    em_force = p2.fx
-
-    p2.zero_force()
-    p2.add_force(e1)
-    print("em force p2 to e1", p2.fx)
-    em_force += p2.fx
-
-    print("em force p2 to e1 and p1", em_force)
-
-    sys.exit(1)
+# def neutron_gravity_test():
+#     # Some experiment on the idea that a neutron is
+#     # is really a e p pair in orbit.  What would
+#     # be the attraction between two such systems?
+#     # Does it match gravity in relative force?
+#     # The answer was the attraction is not even
+#     # 1/x^2 in force!  oops.  That theory got blown
+#     # out of the water!  The overlapping fields does
+#     # create a 1/x^2 field!
+#     # UGH -- 5-11-2018 thoughts: but do two systems in
+#     # orbit actually end up moving closer together or
+#     # further apart due to distorted orbits and orbital
+#     # interactions -- this test did not answer that question
+#     # and if the effect approximates 1/x^2 then it could be
+#     # mistaken as 1/^x^2.  More testing required
+#
+#     close_space = 0.0001 * Angstrom
+#     p1 = Proton(0.0, 0.0, 0.0)
+#     e1 = Electron(0.0 + close_space, 0.0, 0.0)
+#
+#     p2 = Proton(100.0, 0.0, 0.0)
+#     e2 = Electron(100.0 + close_space, 0.0, 0.0)
+#
+#     gravity_force = 0.0
+#     gravity_force += p2.gravity_force(p1)
+#     gravity_force += p2.gravity_force(e1)
+#     gravity_force += e2.gravity_force(p1)
+#     gravity_force += e2.gravity_force(e1)
+#
+#     print("Gravity force between two is:", gravity_force)
+#
+#     p2.zero_force()
+#     p2.add_force(p1)
+#     print("em force p2 to p1", p2.fx)
+#     em_force = p2.fx
+#
+#     p2.zero_force()
+#     p2.add_force(e1)
+#     print("em force p2 to e1", p2.fx)
+#     em_force += p2.fx
+#
+#     print("em force p2 to e1 and p1", em_force)
+#
+#     sys.exit(1)
 
 
 def magnetic_test():
@@ -347,17 +350,17 @@ def magnetic_test():
     #     magnetic_test2(world, dt=dt)
     #     sys.exit(1)
 
-    magnetic_test2(world)
-    exit(1)
-
-    # zz
-
-    print("ZERO Momentum!")
-    print()
-    zero_momentum(world)
-    magnetic_test2(world)
-
-    sys.exit(1)
+    # magnetic_test2(world)
+    # exit(1)
+    #
+    # # zz
+    #
+    # print("ZERO Momentum!")
+    # print()
+    # zero_momentum(world)
+    # magnetic_test2(world)
+    #
+    # sys.exit(1)
     # if False:
     #     p1.vx = - p1.vx
 
@@ -494,54 +497,55 @@ def magnetic_test():
     # sys.exit(1)
 
 
-def magnitude(vec: Tuple[float, float, float]):
+def magnitude(vec: ndarray) -> float:
     """ Compute length of 3D vector. """
-    return math.sqrt(vec[0] ** 2.0 + vec[1] ** 2.0 + vec[2] ** 2.0)
+    # return math.sqrt(vec[0] ** 2.0 + vec[1] ** 2.0 + vec[2] ** 2.0)
+    return np.linalg.norm(vec)
 
 
-def magnetic_test2(world):
-    for p1 in world:
-        p1.zero_force()
-        for p2 in world:
-            p1.add_force(p2)  # ES Only
-
-    for i in range(len(world)):
-        p1 = world[i]
-        print("%s%d X,Y %.1f, %.1f" % (
-            p1.symbol, i, p1.x / Angstrom, p1.y / Angstrom))
-
-    for i in range(len(world)):
-        p1 = world[i]
-        print("V of %s%i" % (p1.symbol, i), p1.v(),
-              "%5.3fc %s" % (magnitude(p1.v()) / CONST_C, p1.symbol))
-
-    # p1p22 = p1.magneticForce3(p2)
-    # p2p12 = p2.magneticForce3(p1)
-
-    for i in range(len(world)):
-        p1 = world[i]
-        print("ES  Total Force on %s%d" % (p1.symbol, i), p1.dt())
-
-    total_mag_force = (0.0, 0.0, 0.0)
-
-    for i in range(len(world)):
-        p1 = world[i]
-        for j in range(len(world)):
-            if i == j:
-                continue
-            p2 = world[j]
-            f = p1.magnetic_force_total(p2)
-            print(
-                "%s%d.magneticForceTotal(%s%d)" % (p1.symbol, i, p2.symbol, j),
-                end=' ')
-            print(f, end=' ')
-            print(magnitude(f))
-
-            total_mag_force = vector_sum(total_mag_force, f)
-
-    print()
-    print("Total Mag force:", total_mag_force)
-    print()
+# def magnetic_test2(world):
+#     for p1 in world:
+#         p1.zero_force()
+#         for p2 in world:
+#             p1.add_force(p2)  # ES Only
+#
+#     for i in range(len(world)):
+#         p1 = world[i]
+#         print("%s%d X,Y %.1f, %.1f" % (
+#             p1.symbol, i, p1.cur_state_r0 / Angstrom, p1.cur_state_r1 / Angstrom))
+#
+#     for i in range(len(world)):
+#         p1 = world[i]
+#         print("V of %s%i" % (p1.symbol, i), p1.v(),
+#               "%5.3fc %s" % (magnitude(p1.v()) / CONST_C, p1.symbol))
+#
+#     # p1p22 = p1.magneticForce3(p2)
+#     # p2p12 = p2.magneticForce3(p1)
+#
+#     for i in range(len(world)):
+#         p1 = world[i]
+#         print("ES  Total Force on %s%d" % (p1.symbol, i), p1.dt())
+#
+#     total_mag_force = (0.0, 0.0, 0.0)
+#
+#     for i in range(len(world)):
+#         p1 = world[i]
+#         for j in range(len(world)):
+#             if i == j:
+#                 continue
+#             p2 = world[j]
+#             f = p1.magnetic_force_total(p2)
+#             print(
+#                 "%s%d.magneticForceTotal(%s%d)" % (p1.symbol, i, p2.symbol, j),
+#                 end=' ')
+#             print(f, end=' ')
+#             print(magnitude(f))
+#
+#             total_mag_force = vector_sum(total_mag_force, f)
+#
+#     print()
+#     print("Total Mag force:", total_mag_force)
+#     print()
 
 
 def crt_clear():
@@ -613,38 +617,129 @@ def subtract(v1, v2):
     return v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2]
 
 
+class ParticleState:
+    def __init__(self, p: 'Particle'):
+        """ Simulation State of Particle p. """
+        self.r = np.zeros(3)    # x, y, z, Position
+        self.v = np.zeros(3)    # x, y, z, Velocity
+        self.f = np.zeros(3)    # x, y, z, Force
+        self.p = p              # particle we are a state for
+
+    def copy(self):
+        """ Return copy of self. """
+        ps = ParticleState(self.p)
+        ps.r[:] = self.r
+        ps.v[:] = self.v
+        ps.f[:] = self.f
+        return ps
+
+    def zero_force(self):
+        """ Zero force vector. """
+        self.f[:] = 0.0
+
+    def add_force(self, p_state: 'ParticleState'):
+        """ Add force on self created by p_state. """
+
+        if self.p is p_state.p:
+            # Particles cause no force on self
+            return
+
+        # Add Electrostatic force
+        # TODO might need to be Rlimited?
+        self.f += self.es_force(p_state)
+
+        # Add electro-drag force
+        if doMagnetic:
+            self.f += self.v_force(p_state)
+
+    def add_static_force(self):
+        """ Add particle static forces to state. """
+        self.f += self.p.static_f
+
+    def es_force(self, p_state: 'ParticleState'):
+        """ Electrostatic force on self by p_state per Coulomb's law. """
+        # Force on self, caused by p.
+        # real force, not R limit limited force
+        # Returns 0,0,0 instead of infinity for two particles located
+        # on same spot.
+
+        if self.p is p_state.p:
+            # Particles cause no force on self
+            return np.zeros(3)
+
+        dr: ndarray = self.r - p_state.r
+
+        r = np.linalg.norm(dr)
+
+        dr_unit = dr/r
+
+        if r == 0.0:
+            return np.zeros(3)  # Bogus but prevents DBZ -- should be infinity
+
+        return dr_unit * CONST_KE * self.p.charge * p_state.p.charge / (r * r)
+
+    def v_force(self, p_state: 'ParticleState'):
+        """ 2021-02-13 New idea.
+            At least I hope it's new.  It was years ago I did the others.
+            Use the velocity which the two particles are approaching to define
+            the magnetic force.  Make the magnetic force act in the same line
+            as the column force, but make it slow down velocity. So as to limit
+            V to be the speed of light.  If V == c, then the magnetic force
+            is just the opposite of the Coulomb force amd cancels it out.
+        """
+        # TODO verify this is working as expected. Testing needed.
+        # relative_v = subtract(self.v(), p.v())
+        dv = self.v - p_state.v
+        # r = (self.cur_state_r0 - p.cur_state_r0, self.cur_state_r1 - p.cur_state_r1, self.cur_state_r2 - p.cur_state_r2)
+        # r_hat = product(1.0 / magnitude(r), r)
+        # r points from p (logically at origin) to self.
+        # r_hat is the unit vector pointing the same way.
+        dr: ndarray = self.r - p_state.r
+        r_hat: ndarray = dr / np.linalg.norm(dr)
+
+        # Magnitude of v in line with r
+        # vr = dot(relative_v, r_hat)
+        vr = np.dot(dv, r_hat)
+        # vr is the magnitude (and sign) of the relative velocity from
+        # p to self.
+        # es_f_mag = magnitude(self.es_force(p))
+        es_f_mag = np.linalg.norm(self.es_force(p_state))
+        # f_vec = product(es_f_mag * (-vr) / CONST_C, r_hat)
+        f_vec: ndarray = (es_f_mag * -vr / CONST_C) * r_hat
+        # First try at coding it:
+        # v_mag = magnitude(relative_v)
+        # print(f"{vr=:.3f} {v_mag=:.3f}")
+        # F = self.product(-v_mag / p.c, es_f) # reduces es_force per abs(speed)
+        return f_vec
+
+    def distance_sq(self, p_state: 'ParticleState'):
+        """ Distance**2 between self and p_state.
+            :returns: distance**2, limited_distance**2
+        """
+
+        d_sqr = np.sum((self.r - p_state.r) ** 2)
+
+        return self.limited_distance_sqr(d_sqr)
+
+    @staticmethod
+    def limited_distance_sqr(d_sqr: float):
+        """ Limit distance to RLimit to solve computational problems.
+            return (real, limited) tuple
+        """
+        return d_sqr, max(d_sqr, RLimit ** 2)
+
+
 class Particle:
     """ The root class for protons and electrons. """
     def __init__(self, x=0.0, y=0.0, z=0.0):
-        # Units all standard SI meters, seconds, Newtons, Kg, Coulombs
-        self.x = x
-        self.y = y
-        self.z = z
-        self.end_x = 0.0
-        self.end_y = 0.0
-        self.end_z = 0.0
-        self.vx = 0.0
-        self.vy = 0.0
-        self.vz = 0.0
-        self.end_vx = 0.0
-        self.end_vy = 0.0
-        self.end_vz = 0.0
-        self.fx = 0.0   # Force X
-        self.fy = 0.0
-        self.fz = 0.0
-        self.static_fx = 0.0    # Static constant adjustment to force
-        self.static_fy = 0.0
-        self.static_fz = 0.0
-        self.end_fx = 0.0
-        self.end_fy = 0.0
-        self.end_fz = 0.0
-        # self.ke = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e) written as K(sub)e
-        # self.ke = self.c * self.c * 1.0e-7  # exactly the same as above
-        self.ke = 8.9875517923e9    # new definition? 8.9875517923(14)×10^9
-        self.lock_in_place = False    # Don't move if true.
+        # Units all standard SI: meters, seconds, Newtons, Kg, Coulombs
+        self.cur_state = ParticleState(self)
+        self.end_state = ParticleState(self)
+        self.cur_state.r[:] = (x, y, z)
 
-        if FakeConstants:
-            self.ke = 1.0  # Coulomb's constant (1/4 pi e) written as K(sub)e
+        self.static_f = np.zeros(3)     # Static forces for hack
+
+        self.lock_in_place = False    # Don't move if true.
 
         self.avgKE = 0.0  # Running average of KE
         self.avgPE = 0.0  # Running average of PE
@@ -653,69 +748,86 @@ class Particle:
         self.mass = 0.0     # Defined in subclass for e and p
         self.symbol = 'e'   # Defined in subclass for e and p
 
-    def r_vec(self):
-        """ 3D location tuple. """
-        return self.x, self.y, self.z
+    def r(self):
+        """ Current 3D Position Vector. """
+        return self.cur_state.r
 
     def v(self):
-        """ 3D Velocity Tuple """
-        return self.vx, self.vy, self.vz
+        """ Current 3D Velocity vector. """
+        # return self.vx, self.vy, self.vz
+        return self.cur_state.v
 
     def f(self):
-        return self.fx, self.fy, self.fz
+        """ Current 3D force vector. """
+        # return self.fx, self.fy, self.fz
+        return self.cur_state.f
 
-    def zero_force(self):  # and end force as well
-        self.fx = 0.0
-        self.fy = 0.0
-        self.fz = 0.0
-        self.zero_end_force()
+    def end_r(self):
+        """ End state 3D Position Vector. """
+        return self.end_state.r
+
+    def end_v(self):
+        """ End state Velocity vector. """
+        # return self.vx, self.vy, self.vz
+        return self.end_state.v
+
+    def end_f(self):
+        """ End state Force vector. """
+        return self.end_state.f
 
     def zero_end_force(self):
-        self.end_fx = 0.0
-        self.end_fy = 0.0
-        self.end_fz = 0.0
+        # self.end_fx = 0.0
+        # self.end_fy = 0.0
+        # self.end_fz = 0.0
+        self.end_state.f[:] = 0.0
 
-    def add_force(self, p):  # and set end force as well
-        if p is self:
-            return
-
-        dx = (self.x - p.x)
-        dy = (self.y - p.y)
-        dz = (self.z - p.z)
-
-        r2, l2 = self.distance2(p)
-
-        if r2 == 0.0:
-            return  # Bogus but prevents DBZ
-
-        force = self.ke * (self.charge * p.charge) / l2
-
-        r = math.sqrt(r2)
-
-        self.fx += force * dx / r
-        self.fy += force * dy / r
-        self.fz += force * dz / r
-
-        if doMagnetic:
-            f = self.magnetic_force_total(p)
-            self.fx += f[0]
-            self.fy += f[1]
-            self.fz += f[2]
-
-        self.end_fx = self.fx
-        self.end_fy = self.fy
-        self.end_fz = self.fz
+    # def add_force(self, p: 'Particle', p_state: ParticleState):  # and set end force as well
+    #     if p is self:
+    #         return
+    #
+    #     # dx = (self.cur_state_r0 - p.cur_state_r0)
+    #     # dy = (self.cur_state_r1 - p.cur_state_r1)
+    #     # dz = (self.cur_state_r2 - p.cur_state_r2)
+    #     dr = p_state.r - p_state.r
+    #
+    #     r2, l2 = self.distance2(p)
+    #
+    #     if r2 == 0.0:
+    #         return  # Bogus but prevents DBZ
+    #
+    #     force = self.ke * (self.charge * p.charge) / l2
+    #
+    #     r = math.sqrt(r2)
+    #
+    #     # self.fx += force * dx / r
+    #     # self.fy += force * dy / r
+    #     # self.fz += force * dz / r
+    #     self.cur_state.f += force * dr / r
+    #
+    #     if doMagnetic:
+    #         f = self.v_force(p.cur_state)
+    #         # self.fx += f[0]
+    #         # self.fy += f[1]
+    #         # self.fz += f[2]
+    #         self.cur_state.f += f
+    #
+    #     # self.end_fx = self.fx
+    #     # self.end_fy = self.fy
+    #     # self.end_fz = self.fz
+    #     self.end_state.f = np.copy(self.cur_state.f)
 
     def add_static_force(self):
         """ Add static forces to beginning and ending forces. """
-        self.fx += self.static_fx
-        self.fy += self.static_fy
-        self.fz += self.static_fz
-        self.end_fx += self.static_fx
-        self.end_fy += self.static_fy
-        self.end_fz += self.static_fz
+        # self.fx += self.static_fx
+        # self.fy += self.static_fy
+        # self.fz += self.static_fz
+        # self.end_fx += self.static_fx
+        # self.end_fy += self.static_fy
+        # self.end_fz += self.static_fz
+        self.cur_state.f += self.static_f
+        self.end_state.f += self.static_f
 
-    def es_force(self, p):
+    def es_force(self, p: 'Particle'):
         # Electrostatic force between self and p per coulomb's law.
         # Force on self, caused by p.
         # real force, not R limit limited force
@@ -723,51 +835,61 @@ class Particle:
         # on same spot.
 
         if p is self:
-            return 0.0, 0.0, 0.0
+            return np.zeros(3)
 
-        dx = (self.x - p.x)
-        dy = (self.y - p.y)
-        dz = (self.z - p.z)
+        # dx = (self.cur_state_r0 - p.cur_state_r0)
+        # dy = (self.cur_state_r1 - p.cur_state_r1)
+        # dz = (self.cur_state_r2 - p.cur_state_r2)
+        dr: ndarray = self.cur_state.r - p.cur_state.r
 
         r2, l2 = self.distance2(p)
 
         if r2 == 0.0:
-            return 0.0, 0.0, 0.0  # Bogus but prevents DBZ -- should be infinity
+            return np.zeros(3)  # Bogus but prevents DBZ -- should be infinity
 
-        force = self.ke * self.charge * p.charge / r2
+        force = CONST_KE * self.charge * p.charge / r2
 
         r = math.sqrt(r2)
 
-        return force * dx / r, force * dy / r, force * dz / r
+        # return force * dx / r, force * dy / r, force * dz / r
+        return dr * (force / r)
 
-    def gravity_force(self, p):
+    def gravity_force(self, p: 'Particle'):
+        # Magnitude of gravity between self and other particle
         g = 6.67408e-11  # 2014 CODATA recommended value
         r2, l2 = self.distance2(p)
         f = g * self.mass * p.mass / r2
         return f
 
-    def magnetic_field(self, p):
-        # Returns a 3D field vector B = (x,y,z)
-        # Calculate the magnetic field created on self, by p.
-        # B = (1e-7 q1 v1 x r_hat) / r^2
-        # r_hat is the unit vector pointing from p to self
+    def magnetic_field(self, p: 'Particle'):
+        """
+            Returns a 3D field vector B = (x,y,z)
+            Calculate the magnetic field created on self, by p.
+            B = (1e-7 q1 v1 x r_hat) / r^2
+            r_hat is the unit vector pointing from p to self
+        """
 
         r2, l2 = self.distance2(p)
 
         if r2 == 0.0:
-            return 0.0, 0, 0, 0.0
+            return np.zeros(3)
 
         # print " distance is", r2, math.sqrt(r2)
 
-        r_hat = (self.x - p.x, self.y - p.y, self.z - p.z)
-        r_hat = product(1.0 / math.sqrt(r2), r_hat)
+        # r_hat = (self.cur_state_r0 - p.cur_state_r0, self.cur_state_r1 - p.cur_state_r1, self.cur_state_r2 - p.cur_state_r2)
+        # r_hat = product(1.0 / math.sqrt(r2), r_hat)
+        r_hat = (self.cur_state.r - p.cur_state.r) / math.sqrt(r2)
 
         # The books say based on current flow, this should be correct:
         # This follows the right hand rule for positive current flow
-        b_vec = product(1e-7 * p.charge / r2, cross(p.v(), r_hat))
+        # b_vec = product(1e-7 * p.charge / r2, cross(p.v(), r_hat))
+        b_vec: ndarray = np.cross(p.cur_state.v, r_hat) * (1e-7 * p.charge / r2)
 
         # This is inverted
-        b_vec = product(-1.0, b_vec)  # backwards
+        # b_vec = product(-1.0, b_vec)  # backwards
+        b_vec = b_vec * -1.0
+        # 2021 -- I have no clue if I added this inversion per the note
+        # below or if this inversion is what is needed per the books?
 
         # The correct way, means that motion causes electrons to push HARDER
         # apart from each other, and ep pairs to pull harder together.  So when
@@ -784,7 +906,7 @@ class Particle:
 
         return b_vec
 
-    def magnetic_force(self, p):
+    def magnetic_force(self, p: 'Particle'):
         # Returns a 3D force vector (x,y,z)
         # Calculate the force created on self, by the magnetic
         # field generated by p.
@@ -798,559 +920,571 @@ class Particle:
         # print "mag force"
         # print " B is", B
 
-        f_vec = product(self.charge, cross(self.v(), b_vec))
+        # f_vec = product(self.charge, cross(self.v(), b_vec))
+        f_vec: ndarray = self.charge * np.cross(self.v(), b_vec)
 
         return f_vec
 
-    def magnetic_force2(self, p):
-        # Same as mag force but assume the magnetic field
-        # is moving with p.  So use our relative speed
-        # as our speed moving THROUGH the mag field.
-        # Returns a 3D force vector (x,y,z)
-        # Calculate the force created on self, by the magnetic
-        # field generated by p.
-        # B = (1e-7 q1 v1 x rHat) / r^2
-        # F = q2 V2 x B
-        # F = q2 V2 X (1e-7 q1 v1 x rHat) / r^2
-        # rHat is the unit vector pointing from p to self
-
-        b_vec = self.magnetic_field(p)
-
-        # print "mag force"
-        # print " B is", B
-
-        relative_v = subtract(self.v(), p.v())
-
-        f_vec = product(self.charge, cross(relative_v, b_vec))
-
-        return f_vec
-
-    def magnetic_force_total(self, p):
-        return self.magnetic_force_total6(p)
-
-        # return self.magnetic_force_total5(p)
-
-        # Total force on self, caused by relative self and p velocity
-        # Combine the calculation of total force into one simpler formula.
-        # Force on p is the negative of this
-
-        # Becomes:
-        # F = u0/4pi q1 q2 Vx(Vxr) / r^3
-
-        # r2, l2 = self.distance2(p)
-        #
-        # if r2 == 0.0:
-        #     # Should be infinity I guess?
-        #     return 0.0, 0.0, 0.0
-        #
-        # r3 = r2 ** (3.0 / 2.0)
-        #
-        # relativeV = self.subtract(self.V(), p.V())  # order not important
-        #
-        # # r points from self to p
-        # r = (p.x - self.x, p.y - self.y, p.z - self.z)
-        # if doMagneticInverse:
-        #     r = self.product(-1.0, r)
-        # f = self.cross(relativeV, self.cross(relativeV, r))
-        # F = self.product(1e-7 * self.charge * p.charge / r3, f)
-        #
-        # return F
-
-    def magnetic_force_total2(self, p):
-        # Second version for testing new ideas
-        # Lets try new idea.  Mag force acts
-        # to slow down relative motion parallel
-        # to r vector. No what what the sign of
-        # the charges, the force is always acting
-        # against forward motion.
-        # It's equal and opposite on the two particles.
-        # so what we calculate for one is just the
-        # inverse of what it is for the other.
-        #  What force we add to make it slow down
-        # We must also take away from ES force
-        # to keep total force on the particle the same,
-        # after we sum ES and MAG.  So this MAG effect
-        # is really just twisting the ES force field.
-        # AKA DISTORTING THE ES FORCE FIELD? :)
-        # Maybe that's relativity right there???
-        # By twisting instead of adding new forces,
-        # we maintain potential vs ke energy truth.
-        # We aren't creating a new potential energy
-        # force field to store mag energy.
-        # Idea, is that when two particles pass
-        # Parallel to each other, at the speed of light
-        # The force acting to slow it down will be the
-        # full ES force and the old ES force will be
-        # down to zero.  So we will have twisted the
-        # ES field a full 90 deg at that point.
-
-        # So to code, find magnitude of v perpendicular to r.
-        # is that v dot rHat?
-        # Adjust as percent relative ot the speed of light.
-        # Divide by v/c.  or v^2/c^2?
-
-        # relative_v = self.subtract(self.V(), p.V())  # order not important
-        # r = (p.x - self.x, p.y - self.y, p.z - self.z)
-
-        # Total force on self, due to other particle p
-
-        # Becomes:
-        # F = u0/4pi q1 q2 Vx(Vxr) / r^3
-
-        (r2, l2) = self.distance2(p)
-
-        if r2 == 0.0:
-            # Should be infinity I guess?
-            return 0.0, 0.0, 0.0
-
-        # r3 = r2 ** (3.0 / 2.0)
-
-        relative_v = subtract(self.v(), p.v())  # order not important
-
-        if True:
-            # new ES twist to slow down logic sort of.
-            # r points from self to p
-
-            r = (p.x - self.x, p.y - self.y, p.z - self.z)
-            r_hat = product(1.0 / magnitude(r), r)
-            mag = cross(cross(relative_v, r_hat), r_hat)
-
-            # Ok, fucking messy with abs() and magnitude(V) to get v^2.
-            # But leave it for now.  Try it, and if it looks good, look for way
-            # to simplify the math later.
-
-            mag_f = product(
-                1e-7 * abs(self.charge * p.charge) * magnitude(relative_v) / r2,
-                mag)
-
-            # So, magF if I coded it correctly, is perpendicular to r, in plane of V.
-            # acting against velocity to slow it down in the direction perpendicular to r.
-            # But also need to reduce ES by this same magnitude to keep total force the same.
-            # OH NO. That's not that simple.  That won't keep total the same!
-            # It won't keep the the magnitude of the force vector the same.
-            # OK -- decided to punt and try it anyway.  These are v^2 terms, so maybe just maybe
-            # there is justification for doing it this way?
-            # So, magF, is the force vector, 90 deg to r.  now I have to reduce r by this same amount.
-            # So I have to add a vector of this same length, pointing in rHat direction.
-
-            es_adjust_f = product(magnitude(mag_f), r_hat)
-            if self.charge * p.charge < 0:
-                es_adjust_f = product(-1.0, es_adjust_f)
-            f_vec = vector_sum(mag_f, es_adjust_f)
-
-            # if False:
-            #     print("TotalForce2")
-            #     print(" self.V() is ", self.V(), magnitude(self.V()))
-            #     print(" p.V() is    ", p.V(), magnitude(p.V()))
-            #     print(" relative_v is", relative_v, magnitude(relative_v))
-            #     print(" r is        ", r)
-            #     print(" r hat is    ", rHat, "magnitude", magnitude(rHat))
-            #     print(" magF is     ", magF, "magnitude", magnitude(magF))
-            #     print(" esAdjustF is", esAdjustF, "magnitude",
-            #           magnitude(esAdjustF))
-            #     print(" F is        ", F, "magnitude", magnitude(F))
-            #     print()
-        # else:
-        #     # Old first way
-        #     # r points from self to p
-        #     r = (p.x - self.x, p.y - self.y, p.z - self.z)
-        #
-        #     if doMagneticInverse:
-        #         r = self.product(-1.0, r)
-        #     # f = self.cross(self.V(), self.cross(p.V(), r))
-        #     f = self.cross(relative_v, self.cross(relative_v, r))
-        #     F = self.product(1e-7 * self.charge * p.charge / r3, f)
-
-        return f_vec
-
-    def magnetic_force_total3(self, p, dt_var=None):
-        # Third version for testing new ideas for magnetic force
-
-        # -- THIS IS BROKEN. Tried to do what I'm doing in Total 4
-        # then tried to turn it into DF/dt -- but failed to calculate
-        # that correctly and now I've given up.  Because the code
-        # below is not getting the signs right because I'm not
-        # calculating F using vectors and the derivative of F is
-        # not using vectors correctly!
-        # So I'm giving up because I don't like this idea anyhow!
-        # Leaving it because I might come back to it some day.
-
-        # dF/dt = (- c^2 1e7 q1 q2 / 2 r^3) v dot r
-        # Error!  Should have been:
-        # dF/dt = (-2 c^2 1e7 q1 q2 / r^3) v dot r_hat
-
-        (r2, l2) = self.distance2(p)
-
-        if r2 == 0.0:
-            # Should be infinity I guess?
-            return 0.0, 0.0, 0.0
-
-        # relative_v = self.subtract(self.V(), p.V())
-        relative_v = subtract(p.v(), self.v())
-
-        r3 = r2 ** (3.0 / 2.0)
-
-        r = (p.x - self.x, p.y - self.y, p.z - self.z)
-        r_hat = product(-1.0 / magnitude(r), r)
-        # r_hat points from p back to self
-        # r_hat * self.q * self.q must define force on self
-
-        # dr = self.dot(relative_v, r_hat)
-        # df = -2.0 * self.ke * self.charge * p.charge * dr / r3
-        # mag_factor = 1.0/(self.c*self.c)
-        # F = self.product(df*mag_factor, r_hat)
-
-        dr = relative_v
-        factor = -2.0 * self.ke * self.charge * p.charge / r3
-        df = product(factor, dr)
-
-        mag_factor = 1.0 / (CONST_C * CONST_C)
-        f_vec = product(mag_factor, df)
-
-        if True:
-            print("ForceTotal3")
-            print(" self.V() is ", self.v(), magnitude(self.v()))
-            print(" p.V() is    ", p.v(), magnitude(p.v()))
-            print(" relative_v is", relative_v, magnitude(relative_v))
-            print(" r is        ", r)
-            print(" r hat is    ", r_hat, magnitude(r_hat))
-            es = self.es_force(p)
-            print(" es_force is  ", es, magnitude(es))
-            if dt_var is not None:
-                print(" dt is       ", dt_var)
-            print(" dr/dt is    ", dr)
-            if dt_var is not None:
-                print(" dr/dt * dt  ", product(dt_var, dr))
-                print(" dr/dt * dt m", magnitude(dr) * dt_var)
-            print(" df/dt is    ", df)
-            if dt_var is not None:
-                print(" df/dt * dt  ", product(dt_var, df))
-                print(" df/dt * dt m", magnitude(df) * dt_var)
-            print(" F is        ", f_vec, magnitude(f_vec))
-            print()
-
-        return f_vec
-
-    def magnetic_force_total4(self, p):
-        # Forth version for testing new ideas for magnetic force
-        # This is what I tried to code with Total3 but then
-        # realized was thinking about it all wrong.  I
-        # want to calculate how the strength of E is changing
-        # over time, and then modify that strength, but not
-        # the direction of of the force vector, as a a function
-        # of how fast the strength of E is changing! aka
-        # d(magnitude(e))/dt.
-
-        # Calculate D|e|/dt and make magnetic force
-        # Nothing more than an increase in the ES force based
-        # on D|e|/dt.
-        # This is a very different approach, but yet seems like
-        # it could produces
-        # the same sort of results for current -- aka the
-        # sum of many elections moving at once.  But it has
-        # the interesting effect of having no magnetic force
-        # at all when the two particles pass side by side
-        # because de/dt = 0 at that point!  Which could be
-        # useful in not messing up orbits!
-        # And it might force elliptical high speed orbits into
-        # circles.
-
-        # d|F|/dt = (-2 c^2 1e7 q1 q2 / r^3) v dot r_hat
-
-        r2, l2 = self.distance2(p)
-
-        if r2 == 0.0:
-            # Should be infinity I guess?
-            return 0.0, 0.0, 0.0
-
-        # relative_v = self.subtract(p.V(), self.V())
-        relative_v = subtract(self.v(), p.v())
-
-        # r3 = r2 ** (3.0 / 2.0)
-
-        r = (p.x - self.x, p.y - self.y, p.z - self.z)
-        r_hat = product(-1.0 / magnitude(r), r)
-        # r_hat points from p back to self
-        # r_hat * self.q * self.q must define force on self
-
-        # dr = self.dot(relative_v, r_hat)
-        # df = -2.0 * self.ke * self.charge * p.charge * dr / r3
-        # magFactor = 1.0/(self.c*self.c)
-        # F = self.product(df*magFactor, r_hat)
-
-        es = self.es_force(p)
-        dr = dot(relative_v, r_hat)
-        beta2 = (dr / CONST_C) ** 2
-        f_vector = product(beta2, es)
-
-        # if False:
-        #     print("ForceTotal4")
-        #     print(" self.V() is ", self.V(), magnitude(self.V()))
-        #     print(" p.V() is    ", p.V(), magnitude(p.V()))
-        #     print(" relative_v is", relative_v, magnitude(relative_v))
-        #     print(" r is        ", r)
-        #     print(" r hat is    ", r_hat, magnitude(r_hat))
-        #     es = self.es_force(p)
-        #     print(" es_force is  ", es, magnitude(es))
-        #     if dt is not None:
-        #         print(" dt is       ", dt)
-        #     print(" dr/dt is    ", dr)
-        #     if dt is not None:
-        #         print(" dr/dt * dt  ", dr * dt)
-        #     print(" df/dt is    ", df)
-        #     if dt is not None:
-        #         print(" df/dt * dt  ", df * dt)
-        #     print(" F is        ", F, magnitude(F))
-        #     print()
-
-        return f_vector
-
-    def magnetic_force_total5(self, p):
-        # Fifth version for testing yet another magnetism
-        # idea.  This one is based on the idea that magnetism
-        # needs to translate the force field into kinetic
-        # energy in a separate dimension from E.  But
-        # when in an orbit, the idea is not to speed or slow
-        # down the orbit -- that's the dimension E is using
-        # store ke in the orbit.  And not to make the orbiting
-        # particle go into a higher or lower orbit -- again
-        # that's the same dimension as E is using. But instead
-        # Make it turn, say from an equator orbit, to a polar
-        # orbit!  So the turn doesn't mess up the kinetic energy
-        # of the E orbit at all!  But instead adds NEW kinetic
-        # energy of a complex spiral or spinning orbit, or something
-        # complex I can't even grasp at the moment!  But a separate
-        # kinetic energy store for the E orbit!
-
-        # So, to do this.  We apply the force of the B field
-        # at 90 degree to R and 90 deg to (relativeV)! aka vxr.
-        # AKA, what B flux lines are, but not how B force is
-        # described!
-
-        # But, we are going to guess that the magnitude of
-        # B should be v^2/c^2 relative to E strength.  Not
-        # with V reduced by vxrHat. (aka using it's full
-        # velocity not it's sin theta reduced velocity.
-        # EDIT -- coded vxr instead. It's easier. Cleaner.
-
-        # And it must be equal and opposite of course.
-        # so p1.mag(p2) is the inverse of p2.mag(p1).
-
-        # d|F|/dt = (-2 c^2 1e7 q1 q2 / r^3) v dot r_hat
-
-        (r2, l2) = self.distance2(p)
-
-        if r2 == 0.0:
-            # Should be infinity I guess?
-            return 0.0, 0.0, 0.0
-
-        # relativeV = self.subtract(p.V(), self.V())
-        # relativeV = self.subtract(self.V(), p.V())
-
-        # r3 = r2 ** (3.0/2.0)
-
-        # r = (p.x - self.x, p.y - self.y, p.z - self.z)
-        # r_hat = self.product(-1.0/magnitude(r), r)
-
-        # r_hat points from p back to self
-        # r_hat * self.q * self.q must define sign of force on self?
-
-        # if False:
-        #     # Old attempt
-        #     b = self.cross(relativeV, r)
-        #     factor = 1e-7 * self.charge * p.charge * magnitude(relativeV) / r3
-        #     if self.charge < 0:
-        #         factor *= -1.0  # well, needed to make ep pair push opposite directions!
-        #     F = self.product(factor, b)
-
-        # So it's 1e-7 q * q * v * v / r^2 in total which gets all the units
-        # consistent with E. But in the direction of v x r.
-
-        # if False:
-        #     # Try making B driven by dE/dt. The faster E is changing, the
-        #     # strong the B field will be.
-        #     # Keep B at 90 deg to E.  Seems to be required.  But
-        #     # we can point it either at vxr, so it's perpendicular to
-        #     # r AND v. Or we can be in the same plane with v and r, while
-        #     # being perpendicular to R still.
-        #     # Lets try vxr first.
-        #     # And I really mean d|E|/dt, not dE/dt.
-        #     #### NOTE: from above: d|F|/dt = (-2 c^2 1e7 q1 q2 / r^3) v dot r_hat
-        #     dr = self.dot(relativeV, r_hat)
-        #     # df = -2.0 * self.ke * self.charge * p.charge * dr / r3
-        #     # Figured out how to convert Dr into Force!  Stupid me for not
-        #     # seeing this before.  Dr is V!  And we know the formula is v^2!
-        #     df = self.ke * self.charge * p.charge * dr * dr / r2
-        #     #### [[[ error above, should be 1e-7 not self.ke?? ]]]]
-        #     b = self.cross(relativeV, r_hat)
-        #     F = self.product(df, b)
-        #     if True:
-        #         print("ForceTotal5")
-        #         print(" self.V() is ", self.V(), magnitude(self.V()))
-        #         print(" p.V() is    ", p.V(), magnitude(p.V()))
-        #         print(" relativeV is", relativeV, magnitude(relativeV))
-        #         print(" r is        ", r)
-        #         print(" r hat is    ", r_hat, magnitude(r_hat))
-        #         es = self.es_force(p)
-        #         print(" es_force is  ", es, magnitude(es))
-        #         print(" dr is       ", dr)
-        #         print(" df is       ", df)
-        #         print(" b is        ", b, magnitude(b))
-        #         print(" F is        ", F, magnitude(F))
-
-        if True:
-            # Total5(C) -- third attempt coded in total5.
-            # Ok, figured out we can not use vxr as the direction
-            # of B. It makes equal and opposite impossible for ++ and --
-            # paris.  But making V in the plane with v and r, while
-            # 90 deg to E is possible.  So lets do that!  We already
-            # tried a version of this in Total2()  But we return.
-            # The difference is that we use V dot r, instead of V x r
-            # this time.  That means this is maximal B when the two
-            # particles are closing on each other the fastest - which
-            # makes them serve away BTW and not run into each other.
-            # I would think.
-
-            # Think of p is being at the origin standing still.
-            # self particles is elsewhere and moving.
-
-            relative_v = subtract(self.v(), p.v())
-
-            # Sign of relativeV is of the velocity of self if the
-            # the velocity of p is zero.
-
-            r = (self.x - p.x, self.y - p.y, self.z - p.z)
-            r_hat = product(1.0 / magnitude(r), r)
-
-            # r points from p (logically at origin) to self.
-
-            # Magnitude of v in line with r
-            vr = dot(relative_v, r_hat)
-
-            v_hat = product(1.0 / magnitude(relative_v), relative_v)
-            b_hat = cross(cross(v_hat, r_hat), r_hat)
-            b_mag = magnitude(b_hat)
-            if b_mag != 0.0:
-                b_hat = product(1.0 / b_mag, b_hat)
-                # Otherwise, leave it as 0,0,0 and let it
-                # return F of zero.
-                # This is a problem.  It happens because we don't
-                # know which direction to point B!  R and V are
-                # in the same, so we don't know which direction
-                # is both 90 deg to R and in the same plane as V.
-                # But yet, at this point, B should be maximal value!
-                # This brings this whole idea under question as to
-                # whether this is logically valid to begin with.
-            factor = 1.0e-7 * self.charge * p.charge * vr * vr / r2
-            f_vec = product(factor, b_hat)
-            # F = self.product(-1.0, F) # backwards
-
-            # if False:
-            #     print("ForceTotal5")
-            #     print("self x y is  ", self.x / Angstrom, self.y / Angstrom)
-            #     print("P   x y is   ", p.x / Angstrom, p.y / Angstrom)
-            #     print(" self.V() is ", self.V(), magnitude(self.V()) / self.c)
-            #     print(" p.V() is    ", p.V(), magnitude(p.V()) / self.c)
-            #     print(" relativeV is", relativeV, magnitude(relativeV))
-            #     print(" VHat is     ", v_hat, magnitude(v_hat))
-            #     print(" r is        ", r)
-            #     print(" r hat is    ", r_hat, magnitude(r_hat))
-            #     es = self.es_force(p)
-            #     print(" es_force is  ", es, magnitude(es))
-            #     print(" vr is       ", vr)
-            #     print(" b_hat is     ", b_hat, magnitude(b_hat))
-            #     print(" factor is   ", factor)
-            #     print(" F is        ", F, magnitude(F))
-            #     print(" F dot r_hat  ", self.dot(F, r_hat))
-
-        # if False:
-        #     # Hard Code fake mag force at 90 deg to v and r for an electron
-        #     # only, at 1/2 the force of E.
-        #     F = (0.0, 0.0, 0.0)
-        #     if isinstance(self, Electron):
-        #         eForce = abs(self.ke * self.charge * p.charge / r2)
-        #         v_hat = self.product(1.0 / magnitude(relativeV), relativeV)
-        #         b = self.cross(v_hat, r_hat)
-        #         b_hat = self.product(1.0 / magnitude(b), b)
-        #         F = self.product(eForce, b_hat)
-        #         # print "v is", self.V()
-        #         # print "r hat is", r_hat
-        #         # print "b Hat is", b_hat
-        #         # print "eForce is", eForce
-        #         # es = self.es_force(p)
-        #         # print " es_force is  ", es, magnitude(es)
-        #         # print "F    is", F
-        #         # sys.exit(1)
-
-        return f_vec
-
-    def magnetic_force_total6(self, p: 'Particle'):
-        """ 2021-02-13 New idea.
-            At least I hope it's new.  It was years ago I did the others.
-            Use the velocity which the two particles are approaching to define
-            the magnetic force.  Make the magnetic force act in the same line
-            as the column force, but make it slow down velocity. So as to limit
-            V to be the speed of light.  If V == c, then the magnetic force
-            is just the opposite of the Coulomb force amd cancels it out.
-        """
-        # TODO verify this is working as expected -- symmetric on both sides ie.
-        relative_v = subtract(self.v(), p.v())
-        r = (self.x - p.x, self.y - p.y, self.z - p.z)
-        r_hat = product(1.0 / magnitude(r), r)
-        # r points from p (logically at origin) to self.
-        # r_hat is the unit vector pointing the same way.
-
-        # Magnitude of v in line with r
-        vr = dot(relative_v, r_hat)
-        # vr is the magnitude (and sign) of the relative velocity from
-        # p to self.
-        es_f_mag = magnitude(self.es_force(p))
-        f_vec = product(es_f_mag * (-vr) / CONST_C, r_hat)
-        # First try at coding it:
-        # v_mag = magnitude(relative_v)
-        # print(f"{vr=:.3f} {v_mag=:.3f}")
-        # F = self.product(-v_mag / p.c, es_f) # reduces es_force per abs(speed)
-        return f_vec
-
-    def add_end_force(self, p):
-        if p is self:
-            return
-
-        dx = (self.end_x - p.end_x)
-        dy = (self.end_y - p.end_y)
-        dz = (self.end_z - p.end_z)
-
-        r2, l2 = self.end_distance2(p)
-
-        force = self.ke * (self.charge * p.charge) / l2
-
-        r = math.sqrt(r2)
-
-        self.end_fx += force * dx / r
-        self.end_fy += force * dy / r
-        self.end_fz += force * dz / r
-
-        if doMagnetic:
-            # TODO BROKEN!  Should be using end_ positions but is not!
-            f = self.magnetic_force_total(p)
-            self.end_fx += f[0]
-            self.end_fy += f[1]
-            self.end_fz += f[2]
+    # def magnetic_force2(self, p):
+    #     # Same as mag force but assume the magnetic field
+    #     # is moving with p.  So use our relative speed
+    #     # as our speed moving THROUGH the mag field.
+    #     # Returns a 3D force vector (x,y,z)
+    #     # Calculate the force created on self, by the magnetic
+    #     # field generated by p.
+    #     # B = (1e-7 q1 v1 x rHat) / r^2
+    #     # F = q2 V2 x B
+    #     # F = q2 V2 X (1e-7 q1 v1 x rHat) / r^2
+    #     # rHat is the unit vector pointing from p to self
+    #
+    #     b_vec = self.magnetic_field(p)
+    #
+    #     # print "mag force"
+    #     # print " B is", B
+    #
+    #     relative_v = subtract(self.v(), p.v())
+    #
+    #     f_vec = product(self.charge, cross(relative_v, b_vec))
+    #
+    #     return f_vec
+
+    # def magnetic_force_total(self, p):
+    #     return self.magnetic_force_total6(p)
+    #
+    #     # return self.magnetic_force_total5(p)
+    #
+    #     # Total force on self, caused by relative self and p velocity
+    #     # Combine the calculation of total force into one simpler formula.
+    #     # Force on p is the negative of this
+    #
+    #     # Becomes:
+    #     # F = u0/4pi q1 q2 Vx(Vxr) / r^3
+    #
+    #     # r2, l2 = self.distance2(p)
+    #     #
+    #     # if r2 == 0.0:
+    #     #     # Should be infinity I guess?
+    #     #     return 0.0, 0.0, 0.0
+    #     #
+    #     # r3 = r2 ** (3.0 / 2.0)
+    #     #
+    #     # relativeV = self.subtract(self.V(), p.V())  # order not important
+    #     #
+    #     # # r points from self to p
+    #     # r = (p.x - self.x, p.y - self.y, p.z - self.z)
+    #     # if doMagneticInverse:
+    #     #     r = self.product(-1.0, r)
+    #     # f = self.cross(relativeV, self.cross(relativeV, r))
+    #     # F = self.product(1e-7 * self.charge * p.charge / r3, f)
+    #     #
+    #     # return F
+
+    # def magnetic_force_total2(self, p):
+    #     # Second version for testing new ideas
+    #     # Lets try new idea.  Mag force acts
+    #     # to slow down relative motion parallel
+    #     # to r vector. No what what the sign of
+    #     # the charges, the force is always acting
+    #     # against forward motion.
+    #     # It's equal and opposite on the two particles.
+    #     # so what we calculate for one is just the
+    #     # inverse of what it is for the other.
+    #     #  What force we add to make it slow down
+    #     # We must also take away from ES force
+    #     # to keep total force on the particle the same,
+    #     # after we sum ES and MAG.  So this MAG effect
+    #     # is really just twisting the ES force field.
+    #     # AKA DISTORTING THE ES FORCE FIELD? :)
+    #     # Maybe that's relativity right there???
+    #     # By twisting instead of adding new forces,
+    #     # we maintain potential vs ke energy truth.
+    #     # We aren't creating a new potential energy
+    #     # force field to store mag energy.
+    #     # Idea, is that when two particles pass
+    #     # Parallel to each other, at the speed of light
+    #     # The force acting to slow it down will be the
+    #     # full ES force and the old ES force will be
+    #     # down to zero.  So we will have twisted the
+    #     # ES field a full 90 deg at that point.
+    #
+    #     # So to code, find magnitude of v perpendicular to r.
+    #     # is that v dot rHat?
+    #     # Adjust as percent relative ot the speed of light.
+    #     # Divide by v/c.  or v^2/c^2?
+    #
+    #     # relative_v = self.subtract(self.V(), p.V())  # order not important
+    #     # r = (p.x - self.x, p.y - self.y, p.z - self.z)
+    #
+    #     # Total force on self, due to other particle p
+    #
+    #     # Becomes:
+    #     # F = u0/4pi q1 q2 Vx(Vxr) / r^3
+    #
+    #     (r2, l2) = self.distance2(p)
+    #
+    #     if r2 == 0.0:
+    #         # Should be infinity I guess?
+    #         return 0.0, 0.0, 0.0
+    #
+    #     # r3 = r2 ** (3.0 / 2.0)
+    #
+    #     relative_v = subtract(self.v(), p.v())  # order not important
+    #
+    #     if True:
+    #         # new ES twist to slow down logic sort of.
+    #         # r points from self to p
+    #
+    #         r = (p.cur_state_r0 - self.cur_state_r0, p.cur_state_r1 - self.cur_state_r1, p.cur_state_r2 - self.cur_state_r2)
+    #         r_hat = product(1.0 / magnitude(r), r)
+    #         mag = cross(cross(relative_v, r_hat), r_hat)
+    #
+    #         # Ok, fucking messy with abs() and magnitude(V) to get v^2.
+    #         # But leave it for now.  Try it, and if it looks good, look for way
+    #         # to simplify the math later.
+    #
+    #         mag_f = product(
+    #             1e-7 * abs(self.charge * p.charge) * magnitude(relative_v) / r2,
+    #             mag)
+    #
+    #         # So, magF if I coded it correctly, is perpendicular to r, in plane of V.
+    #         # acting against velocity to slow it down in the direction perpendicular to r.
+    #         # But also need to reduce ES by this same magnitude to keep total force the same.
+    #         # OH NO. That's not that simple.  That won't keep total the same!
+    #         # It won't keep the the magnitude of the force vector the same.
+    #         # OK -- decided to punt and try it anyway.  These are v^2 terms, so maybe just maybe
+    #         # there is justification for doing it this way?
+    #         # So, magF, is the force vector, 90 deg to r.  now I have to reduce r by this same amount.
+    #         # So I have to add a vector of this same length, pointing in rHat direction.
+    #
+    #         es_adjust_f = product(magnitude(mag_f), r_hat)
+    #         if self.charge * p.charge < 0:
+    #             es_adjust_f = product(-1.0, es_adjust_f)
+    #         f_vec = vector_sum(mag_f, es_adjust_f)
+    #
+    #         # if False:
+    #         #     print("TotalForce2")
+    #         #     print(" self.V() is ", self.V(), magnitude(self.V()))
+    #         #     print(" p.V() is    ", p.V(), magnitude(p.V()))
+    #         #     print(" relative_v is", relative_v, magnitude(relative_v))
+    #         #     print(" r is        ", r)
+    #         #     print(" r hat is    ", rHat, "magnitude", magnitude(rHat))
+    #         #     print(" magF is     ", magF, "magnitude", magnitude(magF))
+    #         #     print(" esAdjustF is", esAdjustF, "magnitude",
+    #         #           magnitude(esAdjustF))
+    #         #     print(" F is        ", F, "magnitude", magnitude(F))
+    #         #     print()
+    #     # else:
+    #     #     # Old first way
+    #     #     # r points from self to p
+    #     #     r = (p.x - self.x, p.y - self.y, p.z - self.z)
+    #     #
+    #     #     if doMagneticInverse:
+    #     #         r = self.product(-1.0, r)
+    #     #     # f = self.cross(self.V(), self.cross(p.V(), r))
+    #     #     f = self.cross(relative_v, self.cross(relative_v, r))
+    #     #     F = self.product(1e-7 * self.charge * p.charge / r3, f)
+    #
+    #     return f_vec
+
+    # def magnetic_force_total3(self, p, dt_var=None):
+    #     # Third version for testing new ideas for magnetic force
+    #
+    #     # -- THIS IS BROKEN. Tried to do what I'm doing in Total 4
+    #     # then tried to turn it into DF/dt -- but failed to calculate
+    #     # that correctly and now I've given up.  Because the code
+    #     # below is not getting the signs right because I'm not
+    #     # calculating F using vectors and the derivative of F is
+    #     # not using vectors correctly!
+    #     # So I'm giving up because I don't like this idea anyhow!
+    #     # Leaving it because I might come back to it some day.
+    #
+    #     # dF/dt = (- c^2 1e7 q1 q2 / 2 r^3) v dot r
+    #     # Error!  Should have been:
+    #     # dF/dt = (-2 c^2 1e7 q1 q2 / r^3) v dot r_hat
+    #
+    #     (r2, l2) = self.distance2(p)
+    #
+    #     if r2 == 0.0:
+    #         # Should be infinity I guess?
+    #         return 0.0, 0.0, 0.0
+    #
+    #     # relative_v = self.subtract(self.V(), p.V())
+    #     relative_v = subtract(p.v(), self.v())
+    #
+    #     r3 = r2 ** (3.0 / 2.0)
+    #
+    #     r = (p.cur_state_r0 - self.cur_state_r0, p.cur_state_r1 - self.cur_state_r1, p.cur_state_r2 - self.cur_state_r2)
+    #     r_hat = product(-1.0 / magnitude(r), r)
+    #     # r_hat points from p back to self
+    #     # r_hat * self.q * self.q must define force on self
+    #
+    #     # dr = self.dot(relative_v, r_hat)
+    #     # df = -2.0 * self.ke * self.charge * p.charge * dr / r3
+    #     # mag_factor = 1.0/(self.c*self.c)
+    #     # F = self.product(df*mag_factor, r_hat)
+    #
+    #     dr = relative_v
+    #     factor = -2.0 * self.ke * self.charge * p.charge / r3
+    #     df = product(factor, dr)
+    #
+    #     mag_factor = 1.0 / (CONST_C * CONST_C)
+    #     f_vec = product(mag_factor, df)
+    #
+    #     if True:
+    #         print("ForceTotal3")
+    #         print(" self.V() is ", self.v(), magnitude(self.v()))
+    #         print(" p.V() is    ", p.v(), magnitude(p.v()))
+    #         print(" relative_v is", relative_v, magnitude(relative_v))
+    #         print(" r is        ", r)
+    #         print(" r hat is    ", r_hat, magnitude(r_hat))
+    #         es = self.es_force(p)
+    #         print(" es_force is  ", es, magnitude(es))
+    #         if dt_var is not None:
+    #             print(" dt is       ", dt_var)
+    #         print(" dr/dt is    ", dr)
+    #         if dt_var is not None:
+    #             print(" dr/dt * dt  ", product(dt_var, dr))
+    #             print(" dr/dt * dt m", magnitude(dr) * dt_var)
+    #         print(" df/dt is    ", df)
+    #         if dt_var is not None:
+    #             print(" df/dt * dt  ", product(dt_var, df))
+    #             print(" df/dt * dt m", magnitude(df) * dt_var)
+    #         print(" F is        ", f_vec, magnitude(f_vec))
+    #         print()
+    #
+    #     return f_vec
+
+    # def magnetic_force_total4(self, p):
+    #     # Forth version for testing new ideas for magnetic force
+    #     # This is what I tried to code with Total3 but then
+    #     # realized was thinking about it all wrong.  I
+    #     # want to calculate how the strength of E is changing
+    #     # over time, and then modify that strength, but not
+    #     # the direction of of the force vector, as a a function
+    #     # of how fast the strength of E is changing! aka
+    #     # d(magnitude(e))/dt.
+    #
+    #     # Calculate D|e|/dt and make magnetic force
+    #     # Nothing more than an increase in the ES force based
+    #     # on D|e|/dt.
+    #     # This is a very different approach, but yet seems like
+    #     # it could produces
+    #     # the same sort of results for current -- aka the
+    #     # sum of many elections moving at once.  But it has
+    #     # the interesting effect of having no magnetic force
+    #     # at all when the two particles pass side by side
+    #     # because de/dt = 0 at that point!  Which could be
+    #     # useful in not messing up orbits!
+    #     # And it might force elliptical high speed orbits into
+    #     # circles.
+    #
+    #     # d|F|/dt = (-2 c^2 1e7 q1 q2 / r^3) v dot r_hat
+    #
+    #     r2, l2 = self.distance2(p)
+    #
+    #     if r2 == 0.0:
+    #         # Should be infinity I guess?
+    #         return 0.0, 0.0, 0.0
+    #
+    #     # relative_v = self.subtract(p.V(), self.V())
+    #     relative_v = subtract(self.v(), p.v())
+    #
+    #     # r3 = r2 ** (3.0 / 2.0)
+    #
+    #     r = (p.cur_state_r0 - self.cur_state_r0, p.cur_state_r1 - self.cur_state_r1, p.cur_state_r2 - self.cur_state_r2)
+    #     r_hat = product(-1.0 / magnitude(r), r)
+    #     # r_hat points from p back to self
+    #     # r_hat * self.q * self.q must define force on self
+    #
+    #     # dr = self.dot(relative_v, r_hat)
+    #     # df = -2.0 * self.ke * self.charge * p.charge * dr / r3
+    #     # magFactor = 1.0/(self.c*self.c)
+    #     # F = self.product(df*magFactor, r_hat)
+    #
+    #     es = self.es_force(p)
+    #     dr = dot(relative_v, r_hat)
+    #     beta2 = (dr / CONST_C) ** 2
+    #     f_vector = product(beta2, es)
+    #
+    #     # if False:
+    #     #     print("ForceTotal4")
+    #     #     print(" self.V() is ", self.V(), magnitude(self.V()))
+    #     #     print(" p.V() is    ", p.V(), magnitude(p.V()))
+    #     #     print(" relative_v is", relative_v, magnitude(relative_v))
+    #     #     print(" r is        ", r)
+    #     #     print(" r hat is    ", r_hat, magnitude(r_hat))
+    #     #     es = self.es_force(p)
+    #     #     print(" es_force is  ", es, magnitude(es))
+    #     #     if dt is not None:
+    #     #         print(" dt is       ", dt)
+    #     #     print(" dr/dt is    ", dr)
+    #     #     if dt is not None:
+    #     #         print(" dr/dt * dt  ", dr * dt)
+    #     #     print(" df/dt is    ", df)
+    #     #     if dt is not None:
+    #     #         print(" df/dt * dt  ", df * dt)
+    #     #     print(" F is        ", F, magnitude(F))
+    #     #     print()
+    #
+    #     return f_vector
+
+    # def magnetic_force_total5(self, p):
+    #     # Fifth version for testing yet another magnetism
+    #     # idea.  This one is based on the idea that magnetism
+    #     # needs to translate the force field into kinetic
+    #     # energy in a separate dimension from E.  But
+    #     # when in an orbit, the idea is not to speed or slow
+    #     # down the orbit -- that's the dimension E is using
+    #     # store ke in the orbit.  And not to make the orbiting
+    #     # particle go into a higher or lower orbit -- again
+    #     # that's the same dimension as E is using. But instead
+    #     # Make it turn, say from an equator orbit, to a polar
+    #     # orbit!  So the turn doesn't mess up the kinetic energy
+    #     # of the E orbit at all!  But instead adds NEW kinetic
+    #     # energy of a complex spiral or spinning orbit, or something
+    #     # complex I can't even grasp at the moment!  But a separate
+    #     # kinetic energy store for the E orbit!
+    #
+    #     # So, to do this.  We apply the force of the B field
+    #     # at 90 degree to R and 90 deg to (relativeV)! aka vxr.
+    #     # AKA, what B flux lines are, but not how B force is
+    #     # described!
+    #
+    #     # But, we are going to guess that the magnitude of
+    #     # B should be v^2/c^2 relative to E strength.  Not
+    #     # with V reduced by vxrHat. (aka using it's full
+    #     # velocity not it's sin theta reduced velocity.
+    #     # EDIT -- coded vxr instead. It's easier. Cleaner.
+    #
+    #     # And it must be equal and opposite of course.
+    #     # so p1.mag(p2) is the inverse of p2.mag(p1).
+    #
+    #     # d|F|/dt = (-2 c^2 1e7 q1 q2 / r^3) v dot r_hat
+    #
+    #     (r2, l2) = self.distance2(p)
+    #
+    #     if r2 == 0.0:
+    #         # Should be infinity I guess?
+    #         return 0.0, 0.0, 0.0
+    #
+    #     # relativeV = self.subtract(p.V(), self.V())
+    #     # relativeV = self.subtract(self.V(), p.V())
+    #
+    #     # r3 = r2 ** (3.0/2.0)
+    #
+    #     # r = (p.x - self.x, p.y - self.y, p.z - self.z)
+    #     # r_hat = self.product(-1.0/magnitude(r), r)
+    #
+    #     # r_hat points from p back to self
+    #     # r_hat * self.q * self.q must define sign of force on self?
+    #
+    #     # if False:
+    #     #     # Old attempt
+    #     #     b = self.cross(relativeV, r)
+    #     #     factor = 1e-7 * self.charge * p.charge * magnitude(relativeV) / r3
+    #     #     if self.charge < 0:
+    #     #         factor *= -1.0  # well, needed to make ep pair push opposite directions!
+    #     #     F = self.product(factor, b)
+    #
+    #     # So it's 1e-7 q * q * v * v / r^2 in total which gets all the units
+    #     # consistent with E. But in the direction of v x r.
+    #
+    #     # if False:
+    #     #     # Try making B driven by dE/dt. The faster E is changing, the
+    #     #     # strong the B field will be.
+    #     #     # Keep B at 90 deg to E.  Seems to be required.  But
+    #     #     # we can point it either at vxr, so it's perpendicular to
+    #     #     # r AND v. Or we can be in the same plane with v and r, while
+    #     #     # being perpendicular to R still.
+    #     #     # Lets try vxr first.
+    #     #     # And I really mean d|E|/dt, not dE/dt.
+    #     #     #### NOTE: from above: d|F|/dt = (-2 c^2 1e7 q1 q2 / r^3) v dot r_hat
+    #     #     dr = self.dot(relativeV, r_hat)
+    #     #     # df = -2.0 * self.ke * self.charge * p.charge * dr / r3
+    #     #     # Figured out how to convert Dr into Force!  Stupid me for not
+    #     #     # seeing this before.  Dr is V!  And we know the formula is v^2!
+    #     #     df = self.ke * self.charge * p.charge * dr * dr / r2
+    #     #     #### [[[ error above, should be 1e-7 not self.ke?? ]]]]
+    #     #     b = self.cross(relativeV, r_hat)
+    #     #     F = self.product(df, b)
+    #     #     if True:
+    #     #         print("ForceTotal5")
+    #     #         print(" self.V() is ", self.V(), magnitude(self.V()))
+    #     #         print(" p.V() is    ", p.V(), magnitude(p.V()))
+    #     #         print(" relativeV is", relativeV, magnitude(relativeV))
+    #     #         print(" r is        ", r)
+    #     #         print(" r hat is    ", r_hat, magnitude(r_hat))
+    #     #         es = self.es_force(p)
+    #     #         print(" es_force is  ", es, magnitude(es))
+    #     #         print(" dr is       ", dr)
+    #     #         print(" df is       ", df)
+    #     #         print(" b is        ", b, magnitude(b))
+    #     #         print(" F is        ", F, magnitude(F))
+    #
+    #     if True:
+    #         # Total5(C) -- third attempt coded in total5.
+    #         # Ok, figured out we can not use vxr as the direction
+    #         # of B. It makes equal and opposite impossible for ++ and --
+    #         # paris.  But making V in the plane with v and r, while
+    #         # 90 deg to E is possible.  So lets do that!  We already
+    #         # tried a version of this in Total2()  But we return.
+    #         # The difference is that we use V dot r, instead of V x r
+    #         # this time.  That means this is maximal B when the two
+    #         # particles are closing on each other the fastest - which
+    #         # makes them serve away BTW and not run into each other.
+    #         # I would think.
+    #
+    #         # Think of p is being at the origin standing still.
+    #         # self particles is elsewhere and moving.
+    #
+    #         relative_v = subtract(self.v(), p.v())
+    #
+    #         # Sign of relativeV is of the velocity of self if the
+    #         # the velocity of p is zero.
+    #
+    #         r = (self.cur_state_r0 - p.cur_state_r0, self.cur_state_r1 - p.cur_state_r1, self.cur_state_r2 - p.cur_state_r2)
+    #         r_hat = product(1.0 / magnitude(r), r)
+    #
+    #         # r points from p (logically at origin) to self.
+    #
+    #         # Magnitude of v in line with r
+    #         vr = dot(relative_v, r_hat)
+    #
+    #         v_hat = product(1.0 / magnitude(relative_v), relative_v)
+    #         b_hat = cross(cross(v_hat, r_hat), r_hat)
+    #         b_mag = magnitude(b_hat)
+    #         if b_mag != 0.0:
+    #             b_hat = product(1.0 / b_mag, b_hat)
+    #             # Otherwise, leave it as 0,0,0 and let it
+    #             # return F of zero.
+    #             # This is a problem.  It happens because we don't
+    #             # know which direction to point B!  R and V are
+    #             # in the same, so we don't know which direction
+    #             # is both 90 deg to R and in the same plane as V.
+    #             # But yet, at this point, B should be maximal value!
+    #             # This brings this whole idea under question as to
+    #             # whether this is logically valid to begin with.
+    #         factor = 1.0e-7 * self.charge * p.charge * vr * vr / r2
+    #         f_vec = product(factor, b_hat)
+    #         # F = self.product(-1.0, F) # backwards
+    #
+    #         # if False:
+    #         #     print("ForceTotal5")
+    #         #     print("self x y is  ", self.x / Angstrom, self.y / Angstrom)
+    #         #     print("P   x y is   ", p.x / Angstrom, p.y / Angstrom)
+    #         #     print(" self.V() is ", self.V(), magnitude(self.V()) / self.c)
+    #         #     print(" p.V() is    ", p.V(), magnitude(p.V()) / self.c)
+    #         #     print(" relativeV is", relativeV, magnitude(relativeV))
+    #         #     print(" VHat is     ", v_hat, magnitude(v_hat))
+    #         #     print(" r is        ", r)
+    #         #     print(" r hat is    ", r_hat, magnitude(r_hat))
+    #         #     es = self.es_force(p)
+    #         #     print(" es_force is  ", es, magnitude(es))
+    #         #     print(" vr is       ", vr)
+    #         #     print(" b_hat is     ", b_hat, magnitude(b_hat))
+    #         #     print(" factor is   ", factor)
+    #         #     print(" F is        ", F, magnitude(F))
+    #         #     print(" F dot r_hat  ", self.dot(F, r_hat))
+    #
+    #     # if False:
+    #     #     # Hard Code fake mag force at 90 deg to v and r for an electron
+    #     #     # only, at 1/2 the force of E.
+    #     #     F = (0.0, 0.0, 0.0)
+    #     #     if isinstance(self, Electron):
+    #     #         eForce = abs(self.ke * self.charge * p.charge / r2)
+    #     #         v_hat = self.product(1.0 / magnitude(relativeV), relativeV)
+    #     #         b = self.cross(v_hat, r_hat)
+    #     #         b_hat = self.product(1.0 / magnitude(b), b)
+    #     #         F = self.product(eForce, b_hat)
+    #     #         # print "v is", self.V()
+    #     #         # print "r hat is", r_hat
+    #     #         # print "b Hat is", b_hat
+    #     #         # print "eForce is", eForce
+    #     #         # es = self.es_force(p)
+    #     #         # print " es_force is  ", es, magnitude(es)
+    #     #         # print "F    is", F
+    #     #         # sys.exit(1)
+    #
+    #     return f_vec
+
+    # def v_force(self, p_state: ParticleState):
+    #     """ 2021-02-13 New idea.
+    #         At least I hope it's new.  It was years ago I did the others.
+    #         Use the velocity which the two particles are approaching to define
+    #         the magnetic force.  Make the magnetic force act in the same line
+    #         as the column force, but make it slow down velocity. So as to limit
+    #         V to be the speed of light.  If V == c, then the magnetic force
+    #         is just the opposite of the Coulomb force amd cancels it out.
+    #     """
+    #     # TODO verify this is working as expected. Testing needed.
+    #     # relative_v = subtract(self.v(), p.v())
+    #     relative_v = self.v() - p.v()
+    #     # r = (self.cur_state_r0 - p.cur_state_r0, self.cur_state_r1 - p.cur_state_r1, self.cur_state_r2 - p.cur_state_r2)
+    #     # r_hat = product(1.0 / magnitude(r), r)
+    #     # r points from p (logically at origin) to self.
+    #     # r_hat is the unit vector pointing the same way.
+    #     dr: ndarray = self.cur_state.r - p.cur_state.r
+    #     r_hat: ndarray = dr / np.linalg.norm(dr)
+    #
+    #     # Magnitude of v in line with r
+    #     # vr = dot(relative_v, r_hat)
+    #     vr = np.dot(relative_v, r_hat)
+    #     # vr is the magnitude (and sign) of the relative velocity from
+    #     # p to self.
+    #     # es_f_mag = magnitude(self.es_force(p))
+    #     es_f_mag = np.linalg.norm(self.es_force(p))
+    #     # f_vec = product(es_f_mag * (-vr) / CONST_C, r_hat)
+    #     f_vec: ndarray = (es_f_mag * -vr / CONST_C) * r_hat
+    #     # First try at coding it:
+    #     # v_mag = magnitude(relative_v)
+    #     # print(f"{vr=:.3f} {v_mag=:.3f}")
+    #     # F = self.product(-v_mag / p.c, es_f) # reduces es_force per abs(speed)
+    #     return f_vec
+
+    # def add_end_force(self, p):
+    #     if p is self:
+    #         return
+    #
+    #     dx = (self.end_x - p.end_x)
+    #     dy = (self.end_y - p.end_y)
+    #     dz = (self.end_z - p.end_z)
+    #
+    #     r2, l2 = self.end_distance2(p)
+    #
+    #     force = self.ke * (self.charge * p.charge) / l2
+    #
+    #     r = math.sqrt(r2)
+    #
+    #     self.end_fx += force * dx / r
+    #     self.end_fy += force * dy / r
+    #     self.end_fz += force * dz / r
+    #
+    #     if doMagnetic:
+    #         # TODO BROKEN!  Should be using end_ positions but is not!
+    #         f = self.v_force(p.end_state)
+    #         self.end_state.f += f
+    #         # self.end_fx += f[0]
+    #         # self.end_fy += f[1]
+    #         # self.end_fz += f[2]
 
     def add_end_static_force(self):
         """ Add static constant to end force. """
-        self.end_fx += self.static_fx
-        self.end_fy += self.static_fy
-        self.end_fz += self.static_fz
+        # self.end_fx += self.static_fx
+        # self.end_fy += self.static_fy
+        # self.end_fz += self.static_fz
+        self.end_state.f += self.static_f
 
     def calculate_end_velocity(self, dt):
         # Assume linear change in acceleration from start (fx to end end_fx)
         # (yes this is the correct integral of a linear change in acceleration)
         # I had to recalculate it 10-4-2016 to verify
 
-        self.end_vx = self.vx + ((self.fx + self.end_fx) / 2.0) * dt / self.mass
-        self.end_vy = self.vy + ((self.fy + self.end_fy) / 2.0) * dt / self.mass
-        self.end_vz = self.vz + ((self.fz + self.end_fz) / 2.0) * dt / self.mass
+        # self.end_vx = self.vx + ((self.fx + self.end_fx) / 2.0) * dt / self.mass
+        # self.end_vy = self.vy + ((self.fy + self.end_fy) / 2.0) * dt / self.mass
+        # self.end_vz = self.vz + ((self.fz + self.end_fz) / 2.0) * dt / self.mass
+
+        dv = ((self.f() + self.end_f())/2.0) * dt / self.mass
+        self.end_state.v = self.v() + dv
 
     def calculate_end_position(self, dt):
         """ Calculate end X Y Z
@@ -1364,109 +1498,113 @@ class Particle:
 
         # self.end_x = self.x + self.vx * dt + 0.5 * (2.0*self.fx + self.end_fx)/(3.0*self.mass) * dt ** 2.0
 
-        self.end_x = self.x + self.vx * dt + (self.fx + 0.5 * self.end_fx) / (
-                    3.0 * self.mass) * dt ** 2.0
-        self.end_y = self.y + self.vy * dt + (self.fy + 0.5 * self.end_fy) / (
-                    3.0 * self.mass) * dt ** 2.0
-        self.end_z = self.z + self.vz * dt + (self.fz + 0.5 * self.end_fz) / (
-                    3.0 * self.mass) * dt ** 2.0
+        # self.end_x = self.cur_state_r0 + self.vx * dt + (self.fx + 0.5 * self.end_fx) / (
+        #             3.0 * self.mass) * dt ** 2.0
+        # self.end_y = self.cur_state_r1 + self.vy * dt + (self.fy + 0.5 * self.end_fy) / (
+        #             3.0 * self.mass) * dt ** 2.0
+        # self.end_z = self.cur_state_r2 + self.vz * dt + (self.fz + 0.5 * self.end_fz) / (
+        #             3.0 * self.mass) * dt ** 2.0
+
+        # TODO this looks wrong -- figure it out
+        self.end_state.r += self.cur_state.v * dt + \
+            (self.cur_state.f + 0.5 * self.end_state.f) / (3.0 * self.mass) * dt ** 2.0
 
     def move(self):
+        """ Update cur_state from end_state. """
         # Make end state the current state
         # Save current state as old state
         # Leaves ending force the same as the starting
 
         if self.lock_in_place:
-            self.vx = 0.0
-            self.vy = 0.0
-            self.vz = 0.0
-            self.fx = 0.0
-            self.fy = 0.0
-            self.fz = 0.0
-            self.end_fx = 0.0
-            self.end_fy = 0.0
-            self.end_fz = 0.0
+            # Hack to prevent this particle from moving.
+            self.cur_state.v = np.zeros(3)
+            self.cur_state.f = np.zeros(3)
+            self.end_state.f = np.zeros(3)
             return
 
-        self.x = self.end_x
-        self.y = self.end_y
-        self.z = self.end_z
-
-        self.vx = self.end_vx
-        self.vy = self.end_vy
-        self.vz = self.end_vz
-
-        self.fx = self.end_fx
-        self.fy = self.end_fy
-        self.fz = self.end_fz
+        self.cur_state = self.end_state.copy()
 
     def reset_state(self):
         # Reset so we can recompute step with new DT
         # Reset force end to match force begin
         # Everything else will be recomputed again.
 
-        self.end_fx = self.fx
-        self.end_fy = self.fy
-        self.end_fz = self.fz
+        # self.end_fx = self.fx
+        # self.end_fy = self.fy
+        # self.end_fz = self.fz
+
+        self.end_state.f[:] = self.cur_state.f
 
     def kinetic_energy(self):
         # print "KE CALC BEGIN"
-        return self.kinetic_energy_calc(self.vx, self.vy, self.vz)
+        return self.kinetic_energy_calc(self.v())
 
     def kinetic_end_energy(self):
         # print "KE CALC END"
-        return self.kinetic_energy_calc(self.end_vx, self.end_vy, self.end_vz)
+        return self.kinetic_energy_calc(self.end_v())
 
-    def kinetic_energy_calc(self, vx, vy, vz):
+    def kinetic_energy_calc(self, v):
         """ 1/2 m v**2 """
-        ke = 0.5 * self.mass * (vx ** 2.0 + vy ** 2.0 + vz ** 2.0)
-        # print "KE CALC vx,vy,vz:", vx, vy, vz
-        # print "KE CALC answer =", ke
+        # ke = 0.5 * self.mass * (vx ** 2.0 + vy ** 2.0 + vz ** 2.0)
+        # # print "KE CALC vx,vy,vz:", vx, vy, vz
+        # # print "KE CALC answer =", ke
+        ke = 0.5 * self.mass * np.sum(v**2)
         return ke
 
     def set_kinetic_energy(self, ke):
         # Back calculate velocity using given ke -- keep direction the same
         new_v2 = ke / (0.5 * self.mass)
-        old_v2 = (self.vx ** 2.0 + self.vy ** 2.0 + self.vz ** 2.0)
+        # old_v2 = (self.vx ** 2.0 + self.vy ** 2.0 + self.vz ** 2.0)
+        old_v2 = np.sum(self.v() ** 2)
         # print "in set kinetic new_v2 is", new_v2
         # print "in set kinetic old_v2 is", old_v2
         new_v = math.sqrt(new_v2)
         old_v = math.sqrt(old_v2)
-        # self.vx *= new_v2 / old_v2
-        # self.vy *= new_v2 / old_v2
-        # self.vz *= new_v2 / old_v2
-        self.vx *= new_v / old_v
-        self.vy *= new_v / old_v
-        self.vz *= new_v / old_v
+        # # self.vx *= new_v2 / old_v2
+        # # self.vy *= new_v2 / old_v2
+        # # self.vz *= new_v2 / old_v2
+        # self.vx *= new_v / old_v
+        # self.vy *= new_v / old_v
+        # self.vz *= new_v / old_v
+        self.cur_state.v *= new_v / old_v
 
-    def distance2(self, p):  # distance squared
+    def distance2(self, p: 'Particle'):
+        """ Distance**2 between self and p.
+            :returns: distance**2, limited_distance**2
+        """
 
         if p is self:
-            return 0.0
+            return self.limited_distance2(0.0)
 
-        dx = (self.x - p.x)
-        dy = (self.y - p.y)
-        dz = (self.z - p.z)
+        # dx = (self.cur_state_r0 - p.cur_state_r0)
+        # dy = (self.cur_state_r1 - p.cur_state_r1)
+        # dz = (self.cur_state_r2 - p.cur_state_r2)
+        #
+        # d2 = dx ** 2.0 + dy ** 2.0 + dz ** 2.0
 
-        d2 = dx ** 2.0 + dy ** 2.0 + dz ** 2.0
+        d2 = np.sum((self.r() - p.r()) ** 2.0)
 
         return self.limited_distance2(d2)
 
-    def end_distance2(self, p):  # distance squared
-
+    def end_distance2(self, p: 'Particle'):  # distance squared
+        """ Distance**2 between self and p end states.
+            :returns: distance**2, limited_distance**2
+        """
         if p is self:
-            return 0.0
+            return self.limited_distance2(0.0)
 
-        dx = (self.end_x - p.end_x)
-        dy = (self.end_y - p.end_y)
-        dz = (self.end_z - p.end_z)
+        # dx = (self.end_x - p.end_x)
+        # dy = (self.end_y - p.end_y)
+        # dz = (self.end_z - p.end_z)
 
-        d2 = dx ** 2.0 + dy ** 2.0 + dz ** 2.0
+        # d2 = dx ** 2.0 + dy ** 2.0 + dz ** 2.0
+
+        d2: float = np.sum((self.end_r() - p.end_r()) ** 2.0)
 
         return self.limited_distance2(d2)
 
     @staticmethod
-    def limited_distance2(d2):
+    def limited_distance2(d2: float):
         """ Limit distance to RLimit to solve computational problems.
             return (real, limited) tuple
         """
@@ -1506,12 +1644,12 @@ class Particle:
         # return 0.0	# Bogus should be +infinity
 
         if d >= RLimit:
-            return self.ke * self.charge * p.charge / d
+            return CONST_KE * self.charge * p.charge / d
 
         global InsideRLimitCount
         InsideRLimitCount += 1
 
-        x = self.ke * self.charge * p.charge / RLimit
+        x = CONST_KE * self.charge * p.charge / RLimit
 
         return x + (x / RLimit) * (RLimit - d)
 
@@ -1519,18 +1657,22 @@ class Particle:
         # self.ke = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e) written as K(sub)e
 
     def momentum(self):
+        """ Return momentum vector for particle. """
         # Return (mx,my,mz) tuple
-        return self.mass * self.vx, self.mass * self.vy, self.mass * self.vz
+        # return self.mass * self.vx, self.mass * self.vy, self.mass * self.vz
+        return self.mass * self.cur_state.v
 
     def add_momentum(self, m):
-        self.vx += m[0] / self.mass
-        self.vy += m[1] / self.mass
-        self.vz += m[2] / self.mass
+        # self.vx += m[0] / self.mass
+        # self.vy += m[1] / self.mass
+        # self.vz += m[2] / self.mass
+        self.cur_state.v += m / self.mass
 
     def add_velocity(self, v):
-        self.vx += v[0]
-        self.vy += v[1]
-        self.vz += v[2]
+        # self.vx += v[0]
+        # self.vy += v[1]
+        # self.vz += v[2]
+        self.cur_state.v += v
 
 
 class Electron(Particle):
@@ -1540,9 +1682,6 @@ class Electron(Particle):
         self.charge = -1.60218e-19  # in Coulombs
         self.mass = 9.10938356e-31
         self.symbol = 'e'
-        if FakeConstants:
-            self.charge = -1.0
-            self.mass = 1.0
 
 
 class Proton(Particle):
@@ -1551,11 +1690,6 @@ class Proton(Particle):
         self.charge = n * +1.60218e-19  # in Coulombs
         self.mass = n * 1.672621898e-27
         self.symbol = 'p'
-        if FakeConstants:
-            self.charge = +1.0
-            # Keep real ratio the same -- mass of electron is 1.0
-            # mass of proton is 1836.15267376
-            self.mass = 1.672621898e-27 / 9.10938356e-31  # units for mass e == 1.0
 
 
 class ParticleImage:
@@ -1569,10 +1703,10 @@ class ParticleImage:
             Implement bounce logic.
             returns: True if energy reset is needed
         """
-        # TODO bounce logic shouldn't be a draw routine.
-        x = self.space_to_pixels(self.p.x)
-        y = self.space_to_pixels(self.p.y)
-        z = self.space_to_pixels(self.p.z)
+        # TODO bounce logic shouldn't be in draw routine.
+        x = self.space_to_pixels(self.p.cur_state.r[0])
+        y = self.space_to_pixels(self.p.cur_state.r[1])
+        z = self.space_to_pixels(self.p.cur_state.r[2])
 
         if isinstance(self.p, Electron):
             color = BLACK
@@ -1596,46 +1730,46 @@ class ParticleImage:
         reset_energy_needed = False
         bounce = False
 
-        if x < inset and self.p.vx < 0:
-            self.p.vx *= -1
+        if x < inset and self.p.v()[0] < 0:
+            self.p.v()[0] *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
             reset_energy_needed = True
-            self.p.x = self.pixels_to_space(inset)
+            self.p.cur_state_r0 = self.pixels_to_space(inset)
             bounce = True
 
-        if x > screen_width - inset and self.p.vx > 0:
-            self.p.vx *= -1
+        if x > screen_width - inset and self.p.v()[0] > 0:
+            self.p.v()[0] *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
             reset_energy_needed = True
-            self.p.x = self.pixels_to_space(screen_width - inset)
+            self.p.cur_state_r0 = self.pixels_to_space(screen_width - inset)
             bounce = True
 
-        if y < inset and self.p.vy < 0:
-            self.p.vy *= -1
+        if y < inset and self.p.v()[1] < 0:
+            self.p.v()[1] *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
             reset_energy_needed = True
-            self.p.y = self.pixels_to_space(inset)
+            self.p.cur_state_r1 = self.pixels_to_space(inset)
             bounce = True
 
-        if y > screen_height - inset and self.p.vy > 0:
-            self.p.vy *= -1
+        if y > screen_height - inset and self.p.v()[1] > 0:
+            self.p.v()[1] *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
             reset_energy_needed = True
-            self.p.y = self.pixels_to_space(screen_height - inset)
+            self.p.cur_state_r1 = self.pixels_to_space(screen_height - inset)
             bounce = True
 
-        if z < inset and self.p.vz < 0:
-            self.p.vz *= -1
+        if z < inset and self.p.v()[2] < 0:
+            self.p.v()[2] *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
             reset_energy_needed = True
-            self.p.z = self.pixels_to_space(inset)
+            self.p.cur_state_r2 = self.pixels_to_space(inset)
             bounce = True
 
-        if z > screen_depth - inset and self.p.vz > 0:
-            self.p.vz *= -1
+        if z > screen_depth - inset and self.p.v()[2] > 0:
+            self.p.v()[2] *= -1
             self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
             reset_energy_needed = True
-            self.p.z = self.pixels_to_space(screen_depth - inset)
+            self.p.cur_state_r2 = self.pixels_to_space(screen_depth - inset)
             bounce = True
 
         global eBounceCount
@@ -1662,8 +1796,8 @@ class ParticleImage:
         if e_change == 1.0:
             reset_energy_needed = False  # Don't reset energy total -- fix it instead
 
-        x = self.space_to_pixels(self.p.x)
-        y = self.space_to_pixels(self.p.y)
+        x = self.space_to_pixels(self.p.cur_state.r[0])
+        y = self.space_to_pixels(self.p.cur_state.r[1])
 
         # print "x y is", x, y
         pygame.draw.circle(screen, color, (x, y), size, 0)
@@ -1687,10 +1821,15 @@ def vector_sum(a, b):
     return a[0]+b[0], a[1]+b[1], a[2]+b[2]
 
 
-def total_momentum(world):
-    s = (0.0, 0.0, 0.0)
-    for i in range(len(world)):
-        s = vector_sum(s, world[i].momentum())
+def total_momentum(world: list[Particle]):
+    """ Total Momentum vector for all particles in world[]. """
+    # s = (0.0, 0.0, 0.0)
+    # for i in range(len(world)):
+    #     s = vector_sum(s, world[i].momentum())
+    # return s
+    s = np.zeros(3)
+    for p in world:
+        s += p.momentum()
     return s
 
 
@@ -1750,7 +1889,7 @@ def zero_momentum(world):
 # Move objects to place center of mass in the middle of the screen
 #####################################################################
 
-def center_mass(world):
+def center_mass(world: list[Particle]):
     """ Move all objects to put the center of mass in the center of
         the Screen.
     """
@@ -1761,24 +1900,31 @@ def center_mass(world):
     center_z = (screen_depth / pixelsPerAngstrom * Angstrom) / 2.0
 
     for p in world:
-        p.x += center_x - center_m[0]
-        p.y += center_y - center_m[1]
-        p.z += center_z - center_m[2]
+        # TODO improve this
+        p.cur_state.r[0] += center_x - center_m[0]
+        p.cur_state.r[1] += center_y - center_m[1]
+        p.cur_state.r[2] += center_z - center_m[2]
 
 
-def center_of_mass(world):
-    """ return center of mass of the world. """
-    cx = cy = cz = 0.0
-    tm = 0.0
+def center_of_mass(world: List[Particle]) -> ndarray:
+    """ return center of mass of the world as pos vector. """
+    # cx = cy = cz = 0.0
+    # tm = 0.0
+    # for p in world:
+    #     cx += p.cur_state_r0 * p.mass
+    #     cy += p.cur_state_r1 * p.mass
+    #     cz += p.cur_state_r2 * p.mass
+    #     tm += p.mass
+    # x = cx / tm
+    # y = cy / tm
+    # z = cz / tm
+    # return x, y, z
+    c = np.zeros(3)
+    total_mass = 0.0
     for p in world:
-        cx += p.x * p.mass
-        cy += p.y * p.mass
-        cz += p.z * p.mass
-        tm += p.mass
-    x = cx / tm
-    y = cy / tm
-    z = cz / tm
-    return x, y, z
+        c += p.cur_state.r * p.mass
+        total_mass += p.mass
+    return c / total_mass
 
 
 # fastTest()
@@ -2010,19 +2156,36 @@ class Simulation:
 
         self.screen = pygame.display.set_mode(screen_size)
         self.clock = pygame.time.Clock()
-        pygame.display.set_caption('Physics hey!')
+        pygame.display.set_caption('Physics-Sim')
 
     def init_forces(self):
+        # cur_state has valid position and velocity.
+        # Copy to cur_state to end_state
         for p1 in self.world:
-            p1.zero_force()
+            p1.end_state = p1.cur_state.copy()
+        # Compute the forces using the end_state.
+        self.compute_end_forces()
+        self.move_all()
+
+        # if False:
+        # shouldn't be done here -- should be done in test code.
+        #     # compute static starting force to keep particles in place
+        #     p1.static_fx = - p1.fx
+        #     p1.static_fy = - p1.fy
+        #     p1.static_fz = - p1.fz
+        #     p1.add_static_force()
+
+    def compute_end_forces(self):
+        for p1 in self.world:
+            p1.end_state.zero_force()
             for p2 in self.world:
-                p1.add_force(p2)
-            # if False:
-            #     # compute static starting force to keep particles in place
-            #     p1.static_fx = - p1.fx
-            #     p1.static_fy = - p1.fy
-            #     p1.static_fz = - p1.fz
-            #     p1.add_static_force()
+                p1.end_state.add_force(p2.end_state)
+            p1.end_state.add_static_force()
+
+    def move_all(self):
+        """ Copy all end_state to cur_state. """
+        for p in self.world:
+            p.move()
 
     def run(self):
         """ Run the simulation. """
@@ -2041,7 +2204,7 @@ class Simulation:
             self.screen.fill(WHITE)
 
             reset_energy_needed = False
-            s_list = sorted(self.pi_world, key=attrgetter('p.z'))
+            s_list = sorted(self.pi_world, key=lambda arg: arg.p.cur_state.r[2])
             for p in s_list:
                 reset_energy_needed |= p.draw_particle(self.screen, self.world)
 
@@ -2125,7 +2288,8 @@ class Simulation:
         print(f"Time now is {self.now * 1000_000_000:.20f} ns", end='')
         print("  DT is: %4.1e" % self.dt)
         p_vec = total_momentum(self.world)
-        print("Total Momentum %8.1e %8.1e %8.1e" % p_vec, end='')
+        print(f"Total Momentum {p_vec[0]:8.1e} {p_vec[1]:8.1e} "
+              "{p_vec[2]:8.1e}", end='')
         print(f"   mag: {magnitude(p_vec):.1e}")
         print()
         print("doMagnetic:", doMagnetic, "  doMagneticInverse:",
@@ -2243,9 +2407,9 @@ class Simulation:
             sys.stdout.write(p1.symbol)
             vc = magnitude(p1.v()) / CONST_C
             self.maxVc = max(self.maxVc, vc)
-            print("%d vx:%10.2e  vy:%10.2e %0.5fc" % (i, p1.vx, p1.vy, vc),
+            print("%d vx:%10.2e  vy:%10.2e %0.5fc" % (i, p1.v()[0], p1.v()[1], vc),
                   end=' ')
-            print("x:%6.2f A" % (p1.x / Angstrom), end=' ')
+            print("x:%6.2f A" % (p1.cur_state.r[0] / Angstrom), end=' ')
             # print " KE:%10.2e" % p1.avgKE
             # if total_avg_ke:
             #     print(" KE:%6.2f%%" % (p1.avgKE * 100 / total_avg_ke))
@@ -2288,7 +2452,7 @@ class Simulation:
                 # r = (p1.ke * p1.charge**2) / (p1.mass * v**2 * j**2)
                 # d = r*j
                 f = p1.mass * magnitude(p1.v()) ** 3 * j ** 2 / \
-                    (2.0 * math.pi * p1.ke * p1.charge ** 2)
+                    (2.0 * math.pi * CONST_KE * p1.charge ** 2)
                 print(f" f:{f / 1_000_000_000_000_000:.1e} PHz", end='')
                 print(f" wl:{CONST_C * 1e9 / f:.3e} nm", end='')  # wave length
                 # print(f" d calc:{d / Angstrom:.4e} A", end='')
@@ -2328,11 +2492,7 @@ class Simulation:
                 # because it duplicates a lot of the same work, but need to
                 # restructure code to do that.
 
-                for p1 in self.world:
-                    p1.zero_end_force()
-                    for p2 in self.world:
-                        p1.add_end_force(p2)
-                    p1.add_end_static_force()
+                self.compute_end_forces()
 
                 # total_ke2 = total_end_kinetic_energy(self.world)
                 # total_pe2 = total_end_potential_energy(self.world)
