@@ -62,6 +62,9 @@ screen_size = screen_width, screen_height = 600, 400
 screen_depth = 1000  # z dimension
 pixelsPerAngstrom = 200.0
 
+Stop_at = 0.000001 * 1e-9   # Pause sim after this clock time
+# Stop_at = 0.0               # Run forever
+
 
 def main():
     sol_test()
@@ -91,7 +94,7 @@ def mag_circle_test():
         # dl = 2.0 * math.pi / steps
         last_px = 0.0  # First point
         last_py = 1.0
-        # 20201 fixed the double use of 'i' but don't know if I fixed
+        # 2021 fixed the double use of 'i' but don't know if I fixed
         # it correctly.  Could have just broken the code.
         for j in range(1, steps + 1):  # UGH i used twice - changed to j
             angle_i = 2.0 * math.pi * j / steps
@@ -741,6 +744,7 @@ class ParticleState:
             Faster version of v_force_old()
             Runs about 2x faster most the time.
         """
+        # return self.v_force_old(p_state)
         dv: ndarray = self.v - p_state.v
         dr: ndarray = self.r - p_state.r
         r = np.linalg.norm(dr)
@@ -1625,8 +1629,8 @@ class Simulation:
     def __init__(self, world: List[Particle]):
         self.world = world
 
-        self.fps_limit = 5000  # was 60
-        self.fps_avg = 1.0  # Computer speed of simulation
+        self.fps_limit = 500    # pygame thing - Frames Per Second
+        self.fps_avg = 1.0      # Computed speed of simulation
         self.run_me = True
         self.cycle_count = 0
         self.now = 0.0
@@ -1709,6 +1713,7 @@ class Simulation:
         loop_cnt = 0
         reset_energy_needed = False
         last_time = time.time()
+        paused = False
 
         while self.run_me:
             loop_cnt += 1
@@ -1720,13 +1725,17 @@ class Simulation:
                     self.run_me = False
                     break
 
+            if paused:
+                time.sleep(0.1)     # Maybe not needed?
+                continue
+
             now = time.time()
             loop_time = now - last_time
             fps = 1 / loop_time
             self.fps_avg += (fps - self.fps_avg) * .01
             last_time = now
 
-            if loop_cnt % 10 == 0:
+            if loop_cnt % 5 == 0:
                 reset_energy_needed = self.draw_world()
 
             self.total_ke = total_kinetic_energy(self.world)
@@ -1746,6 +1755,10 @@ class Simulation:
 
             if loop_cnt % 20 == 0:
                 self.print_stats()
+
+                if 0.0 < Stop_at < self.now:
+                    paused = True
+                    continue
 
             #####################################################################
             # Calculate next position now
@@ -1815,6 +1828,9 @@ class Simulation:
         print(f"Time now is {self.now * 1000_000_000:.20f} ns", end='')
         print("  DT is: %4.1e" % self.dt, end='')
         print(f"  FPS:{self.fps_avg:.1f}")
+
+        if Stop_at > 0.0:
+            print(f"    Stop at {Stop_at * 1000_000_000:.20f} ns")
 
         p_vec = total_momentum(self.world)
         print(f"Total Momentum {p_vec[0]:8.1e} {p_vec[1]:8.1e} "
