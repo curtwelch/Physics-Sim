@@ -19,6 +19,7 @@ from numpy import ndarray
 # import matplotlib.pyplot as plt
 # from operator import attrgetter
 from typing import List, Tuple, Dict
+# import timeit
 
 # import os
 import pygame
@@ -27,11 +28,11 @@ BLACK = 0, 0, 0
 WHITE = 255, 255, 255
 RED = 255, 0, 0
 
-Angstrom = 1.0e-10          # One Angstrom 10e-10 meters
-CONST_C = 299792458.0       # Speed of light m/s - defined constant
+Angstrom = 1.0e-10  # One Angstrom 10e-10 meters
+CONST_C = 299792458.0  # Speed of light m/s - defined constant
 # CONST_KE = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e)  K(sub)e
 # CONST_KE = self.c * self.c * 1.0e-7  # OLD?
-CONST_KE = 8.9875517923e9   # Coulomb's constant; New? 8.9875517923(14)×10^9
+CONST_KE = 8.9875517923e9  # Coulomb's constant; New? 8.9875517923(14)×10^9
 
 # RLimit = 0.1 * Angstrom			# Radius limit hack
 # RLimit = 0.0001 * Angstrom		# Radius limit hack
@@ -51,9 +52,9 @@ dtMin = 1e-30
 # dtMax = 1e-1
 dtMax = 1e-18
 
-dtAdjust = True     # Auto adjust dt time step based on error
+dtAdjust = True  # Auto adjust dt time step based on error
 
-energyFix = False   # fix based on total PE+KE at start
+energyFix = False  # fix based on total PE+KE at start
 energyFix2 = False
 
 # screen_size = screen_width, screen_height = 1000, 800
@@ -618,10 +619,10 @@ def subtract(v1, v2):
 class ParticleState:
     def __init__(self, p: 'Particle'):
         """ Simulation State of Particle p. """
-        self.r = np.zeros(3)    # x, y, z, Position
-        self.v = np.zeros(3)    # x, y, z, Velocity
-        self.f = np.zeros(3)    # x, y, z, Force
-        self.p = p              # particle we are a state for
+        self.r = np.zeros(3)  # x, y, z, Position
+        self.v = np.zeros(3)  # x, y, z, Velocity
+        self.f = np.zeros(3)  # x, y, z, Force
+        self.p = p  # particle we are a state for
 
     def copy(self):
         """ Return copy of self. """
@@ -634,7 +635,7 @@ class ParticleState:
     def __str__(self):
         return f"state: r:{self.r}\n       v:{self.v}\n       f:{self.f}"
 
-    def mom(self) -> ndarray:
+    def momentum(self) -> ndarray:
         """ Momentum Vector. """
         return self.v * self.p.mass
 
@@ -712,14 +713,44 @@ class ParticleState:
 
         r = np.linalg.norm(dr)
 
-        dr_unit = dr/r
+        dr_unit = dr / r
 
         if r == 0.0:
             return np.zeros(3)  # Bogus but prevents DBZ -- should be infinity
 
         return dr_unit * CONST_KE * self.p.charge * p_state.p.charge / (r * r)
 
+    # def v_force_test(self, p_state: 'ParticleState'):
+    #     n = timeit.timeit('nv = self.v_force_new(p_state)', '', number=100, globals=locals())
+    #     o = timeit.timeit('ov = self.v_force_old(p_state)', '', number=100, globals=locals())
+    #     nv = self.v_force_new(p_state)
+    #     if n < o:
+    #         # print(end='.')
+    #         print(f"New Faster - New: {n:.3f} Old: {o:.3f}")
+    #     else:
+    #         print()
+    #         print(f"Old Faster - New: {n:.3f} Old: {o:.3f}")
+    #         ov = self.v_force_old(p_state)
+    #         print("  nv:", nv)
+    #         print("  ov:", ov)
+    #
+    #     return nv
+
     def v_force(self, p_state: 'ParticleState'):
+        """
+            Faster version of v_force_old()
+            Runs about 2x faster most the time.
+        """
+        dv: ndarray = self.v - p_state.v
+        dr: ndarray = self.r - p_state.r
+        r = np.linalg.norm(dr)
+        dr_hat = dr / r
+        f_vec = (dr_hat * dv.dot(dr_hat) * CONST_KE * -1.0 *
+                 np.abs(self.p.charge) *
+                 np.abs(p_state.p.charge) / (r * r * CONST_C))
+        return f_vec
+
+    def v_force_old(self, p_state: 'ParticleState'):
         """ 2021-02-13 New idea.
             At least I hope it's new.  It was years ago I did the others.
             Use the velocity which the two particles are approaching to define
@@ -736,7 +767,7 @@ class ParticleState:
         # r points from p (logically at origin) to self.
         # r_hat is the unit vector pointing the same way.
         dr: ndarray = self.r - p_state.r
-        r_hat: ndarray = dr / np.linalg.norm(dr)
+        r_hat: ndarray = dr / magnitude(dr)
 
         # Magnitude of v in line with r
         # vr = dot(relative_v, r_hat)
@@ -744,7 +775,7 @@ class ParticleState:
         # vr is the magnitude (and sign) of the relative velocity from
         # p to self.
         # es_f_mag = magnitude(self.es_force(p))
-        es_f_mag = np.linalg.norm(self.es_force(p_state))
+        es_f_mag = magnitude(self.es_force(p_state))
         # f_vec = product(es_f_mag * (-vr) / CONST_C, r_hat)
         f_vec: ndarray = (es_f_mag * -vr / CONST_C) * r_hat
         # First try at coding it:
@@ -772,22 +803,23 @@ class ParticleState:
 
 class Particle:
     """ The root class for protons and electrons. """
+
     def __init__(self, x=0.0, y=0.0, z=0.0):
         # Units all standard SI: meters, seconds, Newtons, Kg, Coulombs
         self.cur_state = ParticleState(self)
         self.end_state = ParticleState(self)
         self.cur_state.r[:] = (x, y, z)
 
-        self.static_f = np.zeros(3)     # Static forces for hack
+        self.static_f = np.zeros(3)  # Static forces for hack
 
-        self.lock_in_place = False    # Don't move if true.
+        self.lock_in_place = False  # Don't move if true.
 
         self.avgKE = 0.0  # Running average of KE
         self.avgPE = 0.0  # Running average of PE
 
-        self.charge = 0.0   # Defined by subclass for e and p
-        self.mass = 0.0     # Defined in subclass for e and p
-        self.symbol = 'e'   # Defined in subclass for e and p
+        self.charge = 0.0  # Defined by subclass for e and p
+        self.mass = 0.0  # Defined in subclass for e and p
+        self.symbol = 'e'  # Defined in subclass for e and p
 
     def r(self):
         """ Current 3D Position Vector. """
@@ -924,7 +956,8 @@ class Particle:
         # The books say based on current flow, this should be correct:
         # This follows the right hand rule for positive current flow
         # b_vec = product(1e-7 * p.charge / r2, cross(p.v(), r_hat))
-        b_vec: ndarray = np.cross(p.cur_state.v, r_hat) * (1e-7 * p.charge / r2)
+        b_vec: ndarray = np.cross(p.cur_state.v, r_hat) * (
+                1e-7 * p.charge / r2)
 
         # This is inverted
         # b_vec = product(-1.0, b_vec)  # backwards
@@ -975,7 +1008,7 @@ class Particle:
         # (yes this is the correct integral of a linear change in acceleration)
         # I had to recalculate it 10-4-2016 to verify
 
-        avg_f = (self.cur_state.f + self.end_state.f)/2.0
+        avg_f = (self.cur_state.f + self.end_state.f) / 2.0
         dv = avg_f * dt / self.mass
         self.end_state.v = self.cur_state.v + dv
 
@@ -990,8 +1023,9 @@ class Particle:
         # a is (2*as + ae)/3  --- where as is a start, and ae is a end.
         # end_x = 1/2 ((2as + ae)/3)t² + vt + x
 
-        self.end_state.r = self.cur_state.r + self.cur_state.v * dt + \
-            (self.cur_state.f + 0.5 * self.end_state.f) / (3.0 * self.mass) * dt ** 2
+        self.end_state.r = (self.cur_state.r + self.cur_state.v * dt +
+                            (self.cur_state.f + 0.5 * self.end_state.f) /
+                            (3.0 * self.mass) * dt ** 2)
 
     def move(self):
         """ Update cur_state from end_state. """
@@ -1137,12 +1171,10 @@ class Particle:
 
         return x + (x / RLimit) * (RLimit - d)
 
-    def add_velocity(self, v):
-        self.cur_state.v += v
-
 
 class Electron(Particle):
     """ A Single Electron. """
+
     def __init__(self, x=0.0, y=0.0, z=0.0):
         Particle.__init__(self, x, y, z)
         self.charge = -1.60218e-19  # in Coulombs
@@ -1160,6 +1192,7 @@ class Proton(Particle):
 
 class ParticleImage:
     """" Particle that can draw itself on screen. """
+
     # TODO -- bad way to factor this, do it better
     def __init__(self, p: Particle):
         self.p: Particle = p
@@ -1186,12 +1219,12 @@ class ParticleImage:
         size *= (z / float(screen_depth)) * (max_scale - min_scale) + min_scale
         size = abs(int(size))
 
-        inset = 10          # Bounce at 10 pixels from edge of screen
+        inset = 10  # Bounce at 10 pixels from edge of screen
         if isinstance(self.p, Proton):
             inset = 40
 
         # e_change = 0.25   # Remove energy on bounce
-        e_change = 1.00     # Don't remove energy on bounce
+        e_change = 1.00  # Don't remove energy on bounce
 
         reset_energy_needed = False
         bounce = False
@@ -1284,7 +1317,7 @@ def total_momentum(world: list[Particle]):
     """ Total Momentum vector for all particles in world[]. """
     s = np.zeros(3)
     for p in world:
-        s += p.cur_state.mom()
+        s += p.cur_state.momentum()
     return s
 
 
@@ -1336,9 +1369,20 @@ def zero_momentum(world):
     """
     tm = total_momentum(world)
     total_mass = sum([p.mass for p in world])
-    dv = (-tm[0] / total_mass, -tm[1] / total_mass, -tm[2] / total_mass)
+    dv = -tm / total_mass
     for p in world:
-        p.add_velocity(dv)
+        p.cur_state.v += dv
+
+    # print("starting m is", tm)
+    # print("ending m is", total_momentum(world))
+    # tm = total_momentum(world)
+    # total_mass = sum([p.mass for p in world])
+    # dv = -tm / total_mass
+    # for p in world:
+    #     p.cur_state.v += dv
+    # print("starting m is", tm)
+    # print("ending m is", total_momentum(world))
+    # exit()
 
 
 #####################################################################
@@ -1425,7 +1469,8 @@ def sol_test():
     world: List[Particle] = [Proton(0.2 * Angstrom, 0.0, 0.0),
                              Proton(0.5 * Angstrom, 0.0, 0.0),
                              Proton(1.0 * Angstrom, 0.1 * Angstrom, 0.0),
-                             Proton(1.2 * Angstrom, 0.1 * Angstrom, 1.0 * Angstrom),
+                             Proton(1.2 * Angstrom, 0.1 * Angstrom,
+                                    1.0 * Angstrom),
                              ]
     e1 = Electron(0.0 * Angstrom, 0.0, 0.0)
     world.append(e1)
@@ -1576,11 +1621,12 @@ class Simulation:
     """ A 3D simulation of electrons and protons interacting.
         Includes a graphic display window.
     """
+
     def __init__(self, world: List[Particle]):
         self.world = world
 
-        self.fps_limit = 5000       # was 60
-        self.fps_avg = 1.0          # Computer speed of simulation
+        self.fps_limit = 5000  # was 60
+        self.fps_avg = 1.0  # Computer speed of simulation
         self.run_me = True
         self.cycle_count = 0
         self.now = 0.0
@@ -1590,9 +1636,11 @@ class Simulation:
         self.lastV = 0.0
         self.lastA = 0.0
 
-        self.p_pair_last_distance: Dict[Tuple[float, float], Tuple[float, float]] = {}
+        self.p_pair_last_distance: Dict[
+            Tuple[float, float], Tuple[float, float]] = {}
 
-        self.pi_world: List[ParticleImage] = [ParticleImage(p) for p in self.world]
+        self.pi_world: List[ParticleImage] = [ParticleImage(p) for p in
+                                              self.world]
 
         center_mass(self.world)
         zero_momentum(self.world)
@@ -1609,7 +1657,7 @@ class Simulation:
 
         self.energy_diff_last = 0.0
         self.energy_diff_max = 0.0
-        self.max_vc = 0.0       # Max V in units of CONST_C
+        self.max_vc = 0.0  # Max V in units of CONST_C
 
         self.dt = dtMin
 
@@ -1674,11 +1722,11 @@ class Simulation:
 
             now = time.time()
             loop_time = now - last_time
-            fps = 1/loop_time
+            fps = 1 / loop_time
             self.fps_avg += (fps - self.fps_avg) * .01
             last_time = now
 
-            if loop_cnt % 20 == 0:
+            if loop_cnt % 10 == 0:
                 reset_energy_needed = self.draw_world()
 
             self.total_ke = total_kinetic_energy(self.world)
@@ -1696,7 +1744,7 @@ class Simulation:
                 self.starting_total_ke = self.total_ke
                 self.starting_total_pe = self.total_pe
 
-            if loop_cnt % 40 == 0:
+            if loop_cnt % 20 == 0:
                 self.print_stats()
 
             #####################################################################
@@ -1722,7 +1770,8 @@ class Simulation:
 
             if energyFix:
                 if energy_diff_start > total_ke2:
-                    print("energy error greater than total KE error:", energy_diff_start,
+                    print("energy error greater than total KE error:",
+                          energy_diff_start,
                           "total", total_ke2)
                     energy_diff_start = total_ke2 * 0.5
                     # Only try to take half of total KE out of the system
@@ -1777,7 +1826,7 @@ class Simulation:
         print()
 
         re = ((self.total_ke - self.starting_total_ke) + (
-                    self.total_pe - self.starting_total_pe))
+                self.total_pe - self.starting_total_pe))
         print("Total ke     %8.1e" % self.total_ke,
               "change from last %8.1e" % (self.total_ke - self.last_ke))
         print("Total pe     %8.1e" % self.total_pe,
@@ -1785,7 +1834,8 @@ class Simulation:
         print("Total    e:  %8.1e" % (self.total_ke + self.total_pe))
         print("Relative e:  %8.1e" % (re,), end=' ')
         if self.total_ke:
-            print("  %% of Total ke:%8.4f %% (change from start)" % (abs(re * 100.0 / self.total_ke)))
+            print("  %% of Total ke:%8.4f %% (change from start)" % (
+                abs(re * 100.0 / self.total_ke)))
         else:
             print()
         print()
@@ -1896,7 +1946,7 @@ class Simulation:
             ke = p1.kinetic_energy()
             p1.avgKE += (ke - p1.avgKE) * 0.0001
             total_avg_ke += p1.avgKE
-            total_momentum_mag += magnitude(p1.cur_state.mom())
+            total_momentum_mag += magnitude(p1.cur_state.momentum())
 
         for i in range(len(self.world)):
             p1 = self.world[i]
@@ -1916,16 +1966,17 @@ class Simulation:
                         p1.kinetic_energy() * 100 / self.total_ke), end='')
             else:
                 print(" KE:?", end='')
-            momentum = magnitude(p1.cur_state.mom())
+            momentum = magnitude(p1.cur_state.momentum())
             print(f"  p:{momentum:.2e}", end='')
             if total_momentum_mag:
-                print(f" {momentum*100/total_momentum_mag:5.1f}%", end='')
+                print(f" {momentum * 100 / total_momentum_mag:5.1f}%", end='')
 
             # Frequency of electron in orbit.
             if isinstance(p1, Electron) or isinstance(p1, Proton):
                 f = p1.cur_state.f_from_v()
                 print(f" f:{f / 1_000_000_000_000_000:.1e} PHz", end='')
-                print(f"  wl:{CONST_C * 1e9 / f:.3e} nm", end='')  # wave length
+                print(f"  wl:{CONST_C * 1e9 / f:.3e} nm",
+                      end='')  # wave length
 
             print()
 
@@ -2008,7 +2059,8 @@ class Simulation:
                     # No need to restart -- take this move as fine but use a larger dt
                     # for the next move
 
-                elif self.dt > dtMin and abs(self.energy_diff_last) / total_ke2 > 0.001:
+                elif self.dt > dtMin and abs(
+                        self.energy_diff_last) / total_ke2 > 0.001:
                     # print "SLOWDOWN -- reduce DT abs(diff)/total is", abs(energy_diff) / total_ke2
                     self.dt /= 2.0
                     self.dt = max(self.dt, dtMin)
@@ -2017,7 +2069,8 @@ class Simulation:
                     self.cycle_count = 0
                     continue
 
-            self.energy_diff_max = max(self.energy_diff_max, abs(self.energy_diff_last))
+            self.energy_diff_max = max(self.energy_diff_max,
+                                       abs(self.energy_diff_last))
 
             break  # End of DT adjust loop
 
