@@ -34,8 +34,6 @@ CONST_KE = 8.9875517923e9  # Coulomb's constant; New? 8.9875517923(14)×10^9
 RLimit = 0.0000001 * Angstrom  # Radius limit hack
 
 InsideRLimitCount = 0
-eBounceCount = 0
-pBounceCount = 0
 
 doMagnetic = True
 doMagneticInverse = False
@@ -141,12 +139,48 @@ class ParticleState:
             return
 
         # Add Electrostatic force
-        # TODO might need to be R limited?
+        # TODO might need to be R limited? was before
         self.f += self.es_force(p_state)
 
         # Add electro-drag force
         if doMagnetic:
             self.f += self.v_force(p_state)
+
+    # def add_force(self, p: 'Particle', p_state: ParticleState):  # and set end force as well
+    #     if p is self:
+    #         return
+    #
+    #     # dx = (self.cur_state_r0 - p.cur_state_r0)
+    #     # dy = (self.cur_state_r1 - p.cur_state_r1)
+    #     # dz = (self.cur_state_r2 - p.cur_state_r2)
+    #     dr = p_state.r - p_state.r
+    #
+    #     r2, l2 = self.distance2(p)
+    #
+    #     if r2 == 0.0:
+    #         return  # Bogus but prevents DBZ
+    #
+    #     force = self.ke * (self.charge * p.charge) / l2
+    #
+    #     r = math.sqrt(r2)
+    #
+    #     # self.fx += force * dx / r
+    #     # self.fy += force * dy / r
+    #     # self.fz += force * dz / r
+    #     self.cur_state.f += force * dr / r
+    #
+    #     if doMagnetic:
+    #         f = self.v_force(p.cur_state)
+    #         # self.fx += f[0]
+    #         # self.fy += f[1]
+    #         # self.fz += f[2]
+    #         self.cur_state.f += f
+    #
+    #     # self.end_fx = self.fx
+    #     # self.end_fy = self.fy
+    #     # self.end_fz = self.fz
+    #     self.end_state.f = np.copy(self.cur_state.f)
+
 
     def add_static_force(self):
         """ Add particle static forces to state. """
@@ -291,58 +325,9 @@ class Particle:
         return self.cur_state.f
 
     def end_r(self):
+        # TODO figure out use here and clean up
         """ End state 3D Position Vector. """
         return self.end_state.r
-
-    def end_v(self):
-        """ End state Velocity vector. """
-        # return self.vx, self.vy, self.vz
-        return self.end_state.v
-
-    def end_f(self):
-        """ End state Force vector. """
-        return self.end_state.f
-
-    def zero_end_force(self):
-        # self.end_fx = 0.0
-        # self.end_fy = 0.0
-        # self.end_fz = 0.0
-        self.end_state.f[:] = 0.0
-
-    # def add_force(self, p: 'Particle', p_state: ParticleState):  # and set end force as well
-    #     if p is self:
-    #         return
-    #
-    #     # dx = (self.cur_state_r0 - p.cur_state_r0)
-    #     # dy = (self.cur_state_r1 - p.cur_state_r1)
-    #     # dz = (self.cur_state_r2 - p.cur_state_r2)
-    #     dr = p_state.r - p_state.r
-    #
-    #     r2, l2 = self.distance2(p)
-    #
-    #     if r2 == 0.0:
-    #         return  # Bogus but prevents DBZ
-    #
-    #     force = self.ke * (self.charge * p.charge) / l2
-    #
-    #     r = math.sqrt(r2)
-    #
-    #     # self.fx += force * dx / r
-    #     # self.fy += force * dy / r
-    #     # self.fz += force * dz / r
-    #     self.cur_state.f += force * dr / r
-    #
-    #     if doMagnetic:
-    #         f = self.v_force(p.cur_state)
-    #         # self.fx += f[0]
-    #         # self.fy += f[1]
-    #         # self.fz += f[2]
-    #         self.cur_state.f += f
-    #
-    #     # self.end_fx = self.fx
-    #     # self.end_fy = self.fy
-    #     # self.end_fz = self.fz
-    #     self.end_state.f = np.copy(self.cur_state.f)
 
     def add_static_force(self):
         """ Add static forces to beginning and ending forces. """
@@ -524,8 +509,11 @@ class Particle:
         ke = 0.5 * self.mass * v.dot(v)
         return ke
 
-    def set_kinetic_energy(self, ke):
-        # Back calculate velocity using given ke -- keep direction the same
+    def set_kinetic_energy(self, ke: float):
+        """
+            Update magnitude of velocity to match using given ke
+            Keep direction of vector the same.
+        """
         new_v2 = ke / (0.5 * self.mass)
         # old_v2 = (self.vx ** 2.0 + self.vy ** 2.0 + self.vz ** 2.0)
         old_v2 = np.sum(self.v() ** 2)
@@ -645,137 +633,6 @@ class Proton(Particle):
         self.symbol = 'p'
 
 
-class ParticleImage:
-    """" Particle that can draw itself on screen. """
-
-    # TODO -- bad way to factor this, do it better
-    def __init__(self, p: Particle):
-        self.p: Particle = p
-
-    def draw_particle(self, screen, world):
-        """ Draw Particle on Screen.
-            Implement bounce logic.
-            returns: True if energy reset is needed
-        """
-        # TODO bounce logic shouldn't be in draw routine.
-        x = self.space_to_pixels(self.p.cur_state.r[0])
-        y = self.space_to_pixels(self.p.cur_state.r[1])
-        z = self.space_to_pixels(self.p.cur_state.r[2])
-
-        if isinstance(self.p, Electron):
-            color = BLACK
-            size = 2
-        else:
-            color = RED
-            size = 4
-
-        min_scale = 1.0
-        max_scale = 3.0
-        size *= (z / float(screen_depth)) * (max_scale - min_scale) + min_scale
-        size = abs(int(size))
-
-        inset = 10  # Bounce at 10 pixels from edge of screen
-        if isinstance(self.p, Proton):
-            inset = 40
-
-        # e_change = 0.25   # Remove energy on bounce
-        e_change = 1.00  # Don't remove energy on bounce
-
-        reset_energy_needed = False
-        bounce = False
-
-        if x < inset and self.p.v()[0] < 0:
-            self.p.v()[0] *= -1
-            self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            reset_energy_needed = True
-            self.p.cur_state_r0 = self.pixels_to_space(inset)
-            bounce = True
-
-        if x > screen_width - inset and self.p.v()[0] > 0:
-            self.p.v()[0] *= -1
-            self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            reset_energy_needed = True
-            self.p.cur_state_r0 = self.pixels_to_space(screen_width - inset)
-            bounce = True
-
-        if y < inset and self.p.v()[1] < 0:
-            self.p.v()[1] *= -1
-            self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            reset_energy_needed = True
-            self.p.cur_state_r1 = self.pixels_to_space(inset)
-            bounce = True
-
-        if y > screen_height - inset and self.p.v()[1] > 0:
-            self.p.v()[1] *= -1
-            self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            reset_energy_needed = True
-            self.p.cur_state_r1 = self.pixels_to_space(screen_height - inset)
-            bounce = True
-
-        if z < inset and self.p.v()[2] < 0:
-            self.p.v()[2] *= -1
-            self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            reset_energy_needed = True
-            self.p.cur_state_r2 = self.pixels_to_space(inset)
-            bounce = True
-
-        if z > screen_depth - inset and self.p.v()[2] > 0:
-            self.p.v()[2] *= -1
-            self.p.set_kinetic_energy(self.p.kinetic_energy() * e_change)
-            reset_energy_needed = True
-            self.p.cur_state_r2 = self.pixels_to_space(screen_depth - inset)
-            bounce = True
-
-        global eBounceCount
-        global pBounceCount
-
-        if bounce:
-            zero_momentum(world)  # fix momentum
-            if isinstance(self.p, Proton):
-                pBounceCount += 1
-            else:
-                eBounceCount += 1
-
-        # Notice -- the way we change position below
-        # to move particle back inside window frame without
-        # adjusting velocity changes the total energy in the system.
-        # So setting e_change = 1.0 does not conserve energy correctly.
-        # We adjust the systems total target for fixing energy
-        # on a bounce which forces us to accept this broken
-        # energy total as correct.
-        # But if we turn off the Bounce check, that allows the energyFix
-        # system to keep fixing this error for us.  Hence, the test
-        # below to turn Bounce flag off if e_change is 1.00
-
-        if e_change == 1.0:
-            reset_energy_needed = False  # Don't reset energy total -- fix it instead
-
-        x = self.space_to_pixels(self.p.cur_state.r[0])
-        y = self.space_to_pixels(self.p.cur_state.r[1])
-
-        # print "x y is", x, y
-        pygame.draw.circle(screen, color, (x, y), size, 0)
-
-        return reset_energy_needed
-
-    @staticmethod
-    def space_to_pixels(space):
-        # 0,0 is the same in both and is the top left corner of the screen
-        return int(pixelsPerAngstrom * space / Angstrom)
-
-    @staticmethod
-    def pixels_to_space(pixels):
-        return pixels * Angstrom / pixelsPerAngstrom
-
-
-def total_momentum(world: list[Particle]):
-    """ Total Momentum vector for all particles in world[]. """
-    s = np.zeros(3)
-    for p in world:
-        s += p.cur_state.momentum()
-    return s
-
-
 def total_kinetic_energy(world: list[Particle]):
     total_ke = 0.0
 
@@ -812,32 +669,6 @@ def total_end_potential_energy(world: list[Particle]):
             total_pe += world[i].potential_end_energy(world[j])
 
     return total_pe
-
-
-#####################################################################
-# Normalize momentum
-#####################################################################
-
-def zero_momentum(world):
-    """
-        Adjust all velocities by a constant to make total momentum zero.
-    """
-    tm = total_momentum(world)
-    total_mass = sum([p.mass for p in world])
-    dv = -tm / total_mass
-    for p in world:
-        p.cur_state.v += dv
-
-    # print("starting m is", tm)
-    # print("ending m is", total_momentum(world))
-    # tm = total_momentum(world)
-    # total_mass = sum([p.mass for p in world])
-    # dv = -tm / total_mass
-    # for p in world:
-    #     p.cur_state.v += dv
-    # print("starting m is", tm)
-    # print("ending m is", total_momentum(world))
-    # exit()
 
 
 #####################################################################
@@ -1085,6 +916,8 @@ class Simulation:
         self.run_me = True
         self.cycle_count = 0
         self.now = 0.0
+        self.e_bounce_count = 0
+        self.p_bounce_count = 0
 
         self.lastD = 0.0
         self.last_now = self.now
@@ -1094,11 +927,8 @@ class Simulation:
         self.p_pair_last_distance: Dict[
             Tuple[float, float], Tuple[float, float]] = {}
 
-        self.pi_world: List[ParticleImage] = [ParticleImage(p) for p in
-                                              self.world]
-
         center_mass(self.world)
-        zero_momentum(self.world)
+        self.zero_momentum()
         self.init_forces()
 
         self.total_ke = total_kinetic_energy(self.world)
@@ -1119,6 +949,24 @@ class Simulation:
         self.screen = pygame.display.set_mode(screen_size)
         self.clock = pygame.time.Clock()
         pygame.display.set_caption('Physics-Sim')
+
+    def zero_momentum(self):
+        """
+            Make cur_state momentum zero.
+            Adjust all velocities by a constant to make total momentum zero.
+        """
+        tm = self.total_momentum()
+        total_mass = sum([p.mass for p in self.world])
+        dv = -tm / total_mass
+        for p in self.world:
+            p.cur_state.v += dv
+
+    def total_momentum(self):
+        """ Compute Momentum vector for all particles in world[]. """
+        s = np.zeros(3)
+        for p in self.world:
+            s += p.cur_state.momentum()
+        return s
 
     def init_forces(self):
         """
@@ -1159,10 +1007,8 @@ class Simulation:
 
     def run(self):
         """ Run the simulation. """
-
         self.run_me = True
         loop_cnt = 0
-        reset_energy_needed = False
         last_time = time.time()
         paused = False
 
@@ -1187,22 +1033,11 @@ class Simulation:
             last_time = now
 
             if loop_cnt % 5 == 0:
-                reset_energy_needed = self.draw_world()
+                self.bounce_particles()
+                self.draw_world()
 
             self.total_ke = total_kinetic_energy(self.world)
             self.total_pe = total_potential_energy(self.world)
-
-            if reset_energy_needed:
-                # Bounce happened on display above.
-                # If it's configured to reduce energy on a bounce
-                # then we re-define the starting_totals so if we
-                # are using the fix energy system, it will fix it
-                # based on the energy as it is now, not as it was
-                # when the simulation started.
-                # Currently - we aren't removing energy on a bounce
-                # and we aren't using the fix code, so this is not used.
-                self.starting_total_ke = self.total_ke
-                self.starting_total_pe = self.total_pe
 
             if loop_cnt % 20 == 0:
                 self.print_stats()
@@ -1258,20 +1093,40 @@ class Simulation:
         pygame.quit()
 
     def draw_world(self):
+        """ Draw all the particles on the screen. """
         self.screen.fill(WHITE)
-        reset_energy_needed = False
-        s_list = sorted(self.pi_world, key=lambda arg: arg.p.cur_state.r[2])
+        # Sort world by z dimension so we draw far to near
+        s_list = sorted(self.world, key=lambda arg: arg.cur_state.r[2])
         for p in s_list:
-            reset_energy_needed |= p.draw_particle(self.screen, self.world)
+            self.draw_particle(p)
         pygame.display.flip()
-        return reset_energy_needed
+        return
+
+    def draw_particle(self, p: Particle):
+        """ Draw a single particle on the screen. """
+        x = self.space_to_pixels(p.cur_state.r[0])
+        y = self.space_to_pixels(p.cur_state.r[1])
+        z = self.space_to_pixels(p.cur_state.r[2])
+
+        if isinstance(p, Electron):
+            color = BLACK
+            size = 2
+        else:
+            color = RED
+            size = 4
+
+        min_scale = 1.0
+        max_scale = 3.0
+        size *= (z / float(screen_depth)) * (max_scale - min_scale) + min_scale
+        size = abs(int(size))
+
+        pygame.draw.circle(self.screen, color, (x, y), size, 0)
 
     def print_stats(self):
         """ Print statistics for this loop. """
 
         crt.clear_and_home()
 
-        print()
         print("PixelsPerAngstrom", pixelsPerAngstrom, end=' ')
         print("Screen (%.1fx%.1f) A" % (
             screen_width / pixelsPerAngstrom,
@@ -1283,10 +1138,6 @@ class Simulation:
         if Stop_at > 0.0:
             print(f"    Stop at {Stop_at * 1000_000_000:.20f} ns")
 
-        p_vec = total_momentum(self.world)
-        print(f"Total Momentum {p_vec[0]:8.1e} {p_vec[1]:8.1e} "
-              f"{p_vec[2]:8.1e}", end='')
-        print(f"   mag: {magnitude(p_vec):.1e}")
         print()
         print("doMagnetic:", doMagnetic, "  doMagneticInverse:",
               doMagneticInverse)
@@ -1305,10 +1156,19 @@ class Simulation:
                 abs(re * 100.0 / self.total_ke)))
         else:
             print()
+
+        print(f"Move e err:  {self.energy_diff_last:8.1e}", end='')
+        print(f" max move error   {self.energy_diff_max:8.1e}")
+
+        p_vec = self.total_momentum()
+        print(f"Momentum err:{p_vec[0]:8.1e} {p_vec[1]:8.1e} "
+              f"{p_vec[2]:8.1e}", end='')
+        print(f"   mag: {magnitude(p_vec):.1e}")
+
         print()
 
-        print("Inside R limit ", InsideRLimitCount, " pBounce:", pBounceCount,
-              " eBounce:", eBounceCount)
+        print("Inside R limit:", InsideRLimitCount, "  P Bounce:", self.p_bounce_count,
+              "  E Bounce:", self.e_bounce_count)
 
         self.last_ke = self.total_ke
         self.last_pe = self.total_pe
@@ -1319,59 +1179,8 @@ class Simulation:
 
         self.print_particle_stats()
 
-        print("Max Velocity: %5.3fc" % self.max_vc)
+        print(f"                  Max Velocity: {self.max_vc:7.5f}c")
 
-        print("Energy error for move is %12.4e" % self.energy_diff_last,
-              end='')
-        print(" max error %12.4e" % self.energy_diff_max, end='')
-        print()
-
-        ###########################################
-        # Debug center of mass of pairs for
-        # special e/p pair drift test
-        ###########################################
-        # lastCm = None
-        # for i in range(len(self.world) - 1):
-        #     p1 = self.world[i]
-        #     p2 = self.world[i + 1]
-        #     if isinstance(p2, Electron) and isinstance(p1, Proton):
-        #         cm = center_of_mass((p1, p2))
-        #         # print("Center of Mass of pair %20.15f %20.15f %20.15f" % (
-        #         #     cm[0] / Angstrom, cm[1] / Angstrom, cm[2] / Angstrom))
-        #         if lastCm is not None:
-        #             d = math.sqrt((cm[0] - lastCm[0]) ** 2 +
-        #                           (cm[1] - lastCm[1]) ** 2 +
-        #                           (cm[2] - lastCm[2]) ** 2)
-        #             # print("Distance is %20.15f" % (d / Angstrom))
-        #             dd = d - last_d
-        #             # print("Change   is %20.15f" % (dd / Angstrom))
-        #             move_dt = self.now - self.last_now
-        #             # print("DT is %20.30f" % move_dt)
-        #             v = 0.0
-        #             if move_dt != 0.0:
-        #                 v = dd / move_dt  # Velocity
-        #                 print(f"M/S is {dd / move_dt:.3e} <0 is moving together")
-        #                 a = (v - self.lastV) / move_dt
-        #                 print(f"Acceleration is {a:+.4e}")
-        #                 self.lastA += (a - self.lastA) * .001
-        #                 print(f"       avg A is {self.lastA:.4e}", end='')
-        #             self.lastV = v
-        #             self.last_now = self.now
-        #             last_d = d
-        #             gravity_force = 0.0
-        #             gravity_force += p1.gravity_force(self.world[i - 1])
-        #             gravity_force += p1.gravity_force(self.world[i - 2])
-        #             gravity_force += p2.gravity_force(self.world[i - 2])
-        #             gravity_force += p2.gravity_force(self.world[i - 1])
-        #             # print("Gravity Force is", gravity_force)
-        #             # es = p1.es_force(p2)
-        #             # print("es from p1 to p2 is", es)
-        #             # es = p1.es_force(self.world[i - 2])
-        #             # print("es from p1 to e2 is", es)
-        #             # print("es from 1 to p4 is", es)
-        #             print(f"  Gravity A is {gravity_force / (p1.mass + p2.mass):.3e}")
-        #         lastCm = cm
-        # print()
 
     def print_proton_distance(self):
         """
@@ -1542,6 +1351,127 @@ class Simulation:
             break  # End of DT adjust loop
 
         return energy_diff_start, total_ke2
+
+    def bounce_particles(self):
+        """
+            Check for particles hitting the wall and make them bounce.
+            Updates world momentum, and total_ke and total_pe if needed.
+        """
+        bounce_happened = False
+        for p in self.world:
+            bounce_happened |= self.bounce_particle(p)
+
+        if bounce_happened:
+            # Bounce happened one or more times for world.
+
+            # We re-zero the momentum of the world on a bounce. The run starts
+            # with a zero total momentum and a bounce messes that up. So this
+            # sets back to to zero so we can still look at the total momentum
+            # as an measure of error. This might be a messy problems if two or
+            # more particles go off screen at same time and then we change the
+            # velocity which could, under just the right conditions, cause a
+            # particle that was heading back from a bounce to turn around and
+            # head off screen. Could be a disaster for a large sim with lots of
+            # fast moving particles bouncing all the time.
+
+            self.zero_momentum()
+
+            # We move particles back into the window on a bounce and that
+            # changes the PE. And if we use ke_change_factor that changes the
+            # KE. So we must reset energy totals and reset what we "started" at
+            # so the bounce doesn't make it look like we have a large
+            # simulation error (energy change from start of run).
+
+            self.total_ke = total_kinetic_energy(self.world)
+            self.total_pe = total_potential_energy(self.world)
+
+            self.starting_total_ke = self.total_ke
+            self.starting_total_pe = self.total_pe
+            # TODO wait, do I need to fix end_state and forces???
+
+        return
+
+    def bounce_particle(self, p: Particle):
+        """
+            Check for particle off screen.
+            Process bounce as needed.
+            return True if there was a bounce.
+        """
+        x = self.space_to_pixels(p.cur_state.r[0])
+        y = self.space_to_pixels(p.cur_state.r[1])
+        z = self.space_to_pixels(p.cur_state.r[2])
+
+        vx = p.cur_state.v[0]
+        vy = p.cur_state.v[1]
+        vz = p.cur_state.v[2]
+
+        inset = 10  # Bounce at 10 pixels from edge of screen
+        if isinstance(p, Proton):
+            inset = 40
+
+        # ke_change_factor = 0.25   # Remove energy on bounce (reduce to 25%)
+        ke_change_factor = 1.0      # Don't remove energy on bounce
+
+        bounce = False
+
+        if x < inset and vx < 0:
+            bounce = True
+            vx *= -1
+            p.cur_state.r[0] = self.pixels_to_space(inset)
+
+        if x > screen_width - inset and vx > 0:
+            bounce = True
+            vx *= -1
+            p.cur_state.r[0] = self.pixels_to_space(screen_width - inset)
+
+        if y < inset and vy < 0:
+            bounce = True
+            vy *= -1
+            p.cur_state.r[1] = self.pixels_to_space(inset)
+
+        if y > screen_height - inset and vy > 0:
+            bounce = True
+            vy *= -1
+            p.cur_state.r[1] = self.pixels_to_space(screen_height - inset)
+
+        if z < inset and vz < 0:
+            bounce = True
+            vz *= -1
+            p.cur_state.r[2] = self.pixels_to_space(inset)
+
+        if z > screen_depth - inset and vz > 0:
+            bounce = True
+            vz *= -1
+            p.cur_state.r[2] = self.pixels_to_space(screen_depth - inset)
+
+        if bounce:
+            # Process bounce for this particle
+            # Update changes to velocity if needed
+            p.cur_state.v[0] = vx
+            p.cur_state.v[1] = vy
+            p.cur_state.v[2] = vz
+
+            if ke_change_factor != 1.0:
+                # Adjust KE of the particle if we are using ke_change_factor to
+                # reduce KE on bounce (slow particle down)
+                p.set_kinetic_energy(p.kinetic_energy() * ke_change_factor)
+
+            # Update statistics about bounces.
+            if isinstance(p, Proton):
+                self.p_bounce_count += 1
+            else:
+                self.e_bounce_count += 1
+
+        return bounce
+
+    @staticmethod
+    def space_to_pixels(space):
+        # 0,0 is the same in both and is the top left corner of the screen
+        return int(pixelsPerAngstrom * space / Angstrom)
+
+    @staticmethod
+    def pixels_to_space(pixels):
+        return pixels * Angstrom / pixelsPerAngstrom
 
 
 if __name__ == '__main__':

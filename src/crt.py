@@ -2,6 +2,8 @@
     module crt
     ANSI CRT (VT100) Escape Codes
 
+    functions all use print() to output codes to stdout.
+
     Only a very few basic function included.
     See: https://en.wikipedia.org/wiki/ANSI_escape_code
     for detailed documentation and history of these codes.
