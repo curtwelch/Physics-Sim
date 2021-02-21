@@ -1805,7 +1805,6 @@ def sol_test():
     #     pi_world.append(ParticleImage(Electron(cnt * spacing, 0.0, 0.0)))
     # # pi_world[0].p.lock_in_place = True
     # pi_world[0].p.vx = .5*c
-    # # TODO - just a marker to find this code
     world: List[Particle] = [Proton(0.2 * Angstrom, 0.0, 0.0),
                              Proton(0.5 * Angstrom, 0.0, 0.0),
                              Proton(1.0 * Angstrom, 0.1 * Angstrom, 0.0),
