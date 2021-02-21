@@ -27,44 +27,31 @@ BLACK = 0, 0, 0
 WHITE = 255, 255, 255
 RED = 255, 0, 0
 
-Angstrom = 1.0e-10  # One Angstrom 10e-10 meters
-CONST_C = 299792458.0  # Speed of light m/s - defined constant
+Angstrom = 1.0e-10          # One Angstrom 1e-10 meters
+CONST_C = 299792458.0       # Speed of light m/s - defined constant
 # CONST_KE = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e)  K(sub)e
 # CONST_KE = self.c * self.c * 1.0e-7  # OLD?
-CONST_KE = 8.9875517923e9  # Coulomb's constant; New? 8.9875517923(14)×10^9
+CONST_KE = 8.9875517923e9   # Coulomb's constant; New? 8.9875517923(14)×10^9
 
-# RLimit = 0.1 * Angstrom			# Radius limit hack
-# RLimit = 0.0001 * Angstrom		# Radius limit hack
-RLimit = 0.0000001 * Angstrom  # Radius limit hack
+# RLimit = 0.1 * Angstrom       # Radius limit hack
+# RLimit = 0.0001 * Angstrom    # Radius limit hack
+RLimit = 0.0000001 * Angstrom   # Radius limit hack
 
-InsideRLimitCount = 0
-
+# These two ae used to turn off and various test for
+# electromagnetic forces on particles.
+# Currently, what it enables is the use of v_force()
+# Which is a made up idea for a force based on relative velocity.
 doMagnetic = True
-doMagneticInverse = False
 
-dtMin = 1e-30
-# dtMin = 1e-30
-
-# dtMax = 1e-10
-# dtMax = 1e-1
-dtMax = 1e-18
-
-dtAdjust = True  # Auto adjust dt time step based on error
-
-energyFix = False  # fix based on total PE+KE at start
-energyFix2 = False
-
-# screen_size = screen_width, screen_height = 1000, 800
-screen_size = screen_width, screen_height = 600, 400
-screen_depth = 1000  # z dimension
-pixelsPerAngstrom = 200.0
-
-# Stop_at = 0.000001 * 1e-9   # Pause sim after this clock time
-Stop_at = 0.0               # Run forever
+Energy_fix = False  # fix based on total PE+KE at start
+Energy_fix2 = False
 
 
 def magnitude(vec: ndarray) -> float:
-    """ Compute length of 3D vector. """
+    """ Compute length of 3D vector.
+
+        a wrapper for np.linalg.norm(vec)
+    """
     return np.linalg.norm(vec)
 
 
@@ -309,20 +296,15 @@ class Particle:
         """ Current 3D Position Vector. """
         return self.cur_state.r
 
-    def v(self):
-        """ Current 3D Velocity vector. """
-        # return self.vx, self.vy, self.vz
-        return self.cur_state.v
+    # def v(self):
+    #     """ Current 3D Velocity vector. """
+    #     # return self.vx, self.vy, self.vz
+    #     return self.cur_state.v
 
-    def f(self):
-        """ Current 3D force vector. """
-        # return self.fx, self.fy, self.fz
-        return self.cur_state.f
-
-    def end_r(self):
-        # TODO figure out use here and clean up
-        """ End state 3D Position Vector. """
-        return self.end_state.r
+    # def f(self):
+    #     """ Current 3D force vector. """
+    #     # return self.fx, self.fy, self.fz
+    #     return self.cur_state.f
 
     def add_static_force(self):
         """ Add static forces to beginning and ending forces. """
@@ -350,7 +332,7 @@ class Particle:
         # dz = (self.cur_state_r2 - p.cur_state_r2)
         dr: ndarray = self.cur_state.r - p.cur_state.r
 
-        r2, l2 = self.distance2(p)
+        r2, l2 = self.distance_squared(p)
 
         if r2 == 0.0:
             return np.zeros(3)  # Bogus but prevents DBZ -- should be infinity
@@ -365,7 +347,7 @@ class Particle:
     def gravity_force(self, p: 'Particle'):
         # Magnitude of gravity between self and other particle
         g = 6.67408e-11  # 2014 CODATA recommended value
-        r2, l2 = self.distance2(p)
+        r2, l2 = self.distance_squared(p)
         f = g * self.mass * p.mass / r2
         return f
 
@@ -377,7 +359,7 @@ class Particle:
             r_hat is the unit vector pointing from p to self
         """
 
-        r2, l2 = self.distance2(p)
+        r2, l2 = self.distance_squared(p)
 
         if r2 == 0.0:
             return np.zeros(3)
@@ -430,7 +412,7 @@ class Particle:
         # print " B is", B
 
         # f_vec = product(self.charge, cross(self.v(), b_vec))
-        f_vec: ndarray = self.charge * np.cross(self.v(), b_vec)
+        f_vec: ndarray = self.charge * np.cross(self.cur_state.v, b_vec)
 
         return f_vec
 
@@ -497,12 +479,8 @@ class Particle:
         return self.kinetic_energy_calc(self.end_state.v)
 
     def kinetic_energy_calc(self, v: ndarray) -> float:
-        """ 1/2 m v**2 """
-        # ke = 0.5 * self.mass * (vx ** 2.0 + vy ** 2.0 + vz ** 2.0)
-        # # print "KE CALC vx,vy,vz:", vx, vy, vz
-        # # print "KE CALC answer =", ke
-        ke = 0.5 * self.mass * v.dot(v)
-        return ke
+        """ 1/2 mv² """
+        return 0.5 * self.mass * v.dot(v)
 
     def set_kinetic_energy(self, ke: float):
         """
@@ -511,7 +489,8 @@ class Particle:
         """
         new_v2 = ke / (0.5 * self.mass)
         # old_v2 = (self.vx ** 2.0 + self.vy ** 2.0 + self.vz ** 2.0)
-        old_v2 = np.sum(self.v() ** 2)
+        # old_v2 = np.sum(self.v() ** 2)
+        old_v2 = np.sum(self.cur_state.v ** 2)
         # print "in set kinetic new_v2 is", new_v2
         # print "in set kinetic old_v2 is", old_v2
         new_v = math.sqrt(new_v2)
@@ -524,7 +503,7 @@ class Particle:
         # self.vz *= new_v / old_v
         self.cur_state.v *= new_v / old_v
 
-    def distance2(self, p: 'Particle'):
+    def distance_squared(self, p: 'Particle'):
         """ Distance**2 between self and p.
             :returns: distance**2, limited_distance**2
         """
@@ -532,17 +511,11 @@ class Particle:
         if p is self:
             return self.limited_distance2(0.0)
 
-        # dx = (self.cur_state_r0 - p.cur_state_r0)
-        # dy = (self.cur_state_r1 - p.cur_state_r1)
-        # dz = (self.cur_state_r2 - p.cur_state_r2)
-        #
-        # d2 = dx ** 2.0 + dy ** 2.0 + dz ** 2.0
+        d_squared: float = np.sum((self.cur_state.r - p.cur_state.r) ** 2)
 
-        d2 = np.sum((self.r() - p.r()) ** 2.0)
+        return self.limited_distance2(d_squared)
 
-        return self.limited_distance2(d2)
-
-    def end_distance2(self, p: 'Particle'):  # distance squared
+    def end_distance_squared(self, p: 'Particle'):  # distance squared
         """ Distance**2 between self and p end states.
             :returns: distance**2, limited_distance**2
         """
@@ -555,9 +528,9 @@ class Particle:
 
         # d2 = dx ** 2.0 + dy ** 2.0 + dz ** 2.0
 
-        d2: float = np.sum((self.end_r() - p.end_r()) ** 2.0)
+        d_squared: float = np.sum((self.end_state.r - p.end_state.r) ** 2)
 
-        return self.limited_distance2(d2)
+        return self.limited_distance2(d_squared)
 
     @staticmethod
     def limited_distance2(d2: float):
@@ -567,11 +540,11 @@ class Particle:
         return d2, max(d2, RLimit ** 2)
 
     def distance(self, p):
-        r, r_limited = self.distance2(p)
+        r, r_limited = self.distance_squared(p)
         return math.sqrt(r), math.sqrt(r_limited)
 
     def end_distance(self, p):
-        r, r_limited = self.end_distance2(p)
+        r, r_limited = self.end_distance_squared(p)
         return math.sqrt(r), math.sqrt(r_limited)
 
     def potential_energy(self, p):
@@ -602,8 +575,8 @@ class Particle:
         if d >= RLimit:
             return CONST_KE * self.charge * p.charge / d
 
-        global InsideRLimitCount
-        InsideRLimitCount += 1
+        # self.inside_r_limit_count += 1
+        # TODO this won't work -- figure out what to do
 
         x = CONST_KE * self.charge * p.charge / RLimit
 
@@ -633,15 +606,49 @@ class Simulation:
         Includes a graphic display animation.
     """
 
-    def __init__(self, world: List[Particle], title='Physics-Sim'):
+    def __init__(self, world: List[Particle],
+                 title='Physics-Sim',
+                 screen_width=600,
+                 screen_height=400,
+                 screen_depth=500,
+                 pixels_per_angstrom=200,
+                 dt_min=1e-30,
+                 dt_max=1.0,
+                 dt_adjust=True,
+                 stop_at=0.0,
+                 ):
+        """
+        3D Simulation of Protons and Electrons.
+
+        Args:
+            title: title for windows
+            screen_width: pixels - window width
+            screen_height: pixels - window height
+            screen_depth: pixels - z dimension of simulation box
+            pixels_per_angstrom: conversion factor- simulated space to screen
+            dt_min: seconds - Smallest Time Step of simulation
+            dt_max: seconds - Largest Time Stop of seconds
+            dt_adjust: boolean - Adjust time step automatically
+            stop_at: seconds - simulation stops when it goes past this.
+                     0.0 means run forever.
+        """
         self.world = world
         self.title = title      # Screen Title
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.screen_depth = screen_depth
+        self.pixels_per_angstrom = pixels_per_angstrom
+        self.dt_min = dt_min
+        self.dt_max = dt_max
+        self.dt_adjust = dt_adjust
+        self.stop_at = stop_at  # Simulations time to stop
 
         self.fps_limit = 500    # pygame thing - Frames Per Second
         self.fps_avg = 1.0      # Computed average speed of simulation
         self.run_me = True
         self.cycle_count = 0
-        self.now = 0.0
+        self.now = 0.0          # Simulation time in seconds
+        self.inside_r_limit_count = 0
         self.e_bounce_count = 0
         self.p_bounce_count = 0
 
@@ -670,9 +677,10 @@ class Simulation:
         self.energy_diff_max = 0.0
         self.max_vc = 0.0  # Max V in units of CONST_C
 
-        self.dt = dtMin
+        self.dt = self.dt_min
 
-        self.screen = pygame.display.set_mode(screen_size)
+        self.screen = pygame.display.set_mode(
+            (self.screen_width, self.screen_height))
         self.clock = pygame.time.Clock()
         pygame.display.set_caption(self.title)
 
@@ -680,15 +688,16 @@ class Simulation:
         """ Move world center of mass to center of screen. """
         center_m = self.center_of_mass()
 
-        center_x = (screen_width / pixelsPerAngstrom * Angstrom) / 2.0
-        center_y = (screen_height / pixelsPerAngstrom * Angstrom) / 2.0
-        center_z = (screen_depth / pixelsPerAngstrom * Angstrom) / 2.0
+        # Center of screen (0,0,0 is upper left front corner)
+        center = (
+            (self.screen_width / self.pixels_per_angstrom * Angstrom) / 2.0,
+            (self.screen_height / self.pixels_per_angstrom * Angstrom) / 2.0,
+            (self.screen_depth / self.pixels_per_angstrom * Angstrom) / 2.0)
+
+        dr = center-center_m    # Distance vector to move everything
 
         for p in self.world:
-            # TODO improve this
-            p.cur_state.r[0] += center_x - center_m[0]
-            p.cur_state.r[1] += center_y - center_m[1]
-            p.cur_state.r[2] += center_z - center_m[2]
+            p.cur_state.r += dr
 
     def center_of_mass(self) -> ndarray:
         """ return center of mass of the world as pos vector. """
@@ -829,7 +838,7 @@ class Simulation:
             if loop_cnt % 20 == 0:
                 self.print_stats()
 
-                if 0.0 < Stop_at < self.now:
+                if 0.0 < self.stop_at < self.now:
                     paused = True
                     continue
 
@@ -849,12 +858,9 @@ class Simulation:
 
             self.now += self.dt
 
-            ######################################################################
-            # Fix total energy error
-            # Adjust all velocities to remove energy error of energy_diff_start
-            ######################################################################
-
-            if energyFix:
+            if Energy_fix:  # not compatible with v_force() - breaks PE
+                # Fix total energy error
+                # Adjust all velocities to remove energy error of energy_diff_start
                 if energy_diff_start > total_ke2:
                     print("energy error greater than total KE error:",
                           energy_diff_start,
@@ -864,17 +870,16 @@ class Simulation:
                     # time.sleep(1)
                     # sys.exit(1)
 
-                for i in range(len(self.world)):
+                for p in self.world:
                     # print
                     # print "Adjust KE for particle", i, "energy_diff_start error is", energy_diff_start
-                    p1 = self.world[i]
-                    ke = p1.kinetic_energy()
+                    ke = p.kinetic_energy()
                     # print "Current ke is", ke
                     # print "percent of of total is", ke/total_ke2*100.0, "%"
                     # print "amount added of total energy_diff_start is", ke/total_ke2*energy_diff_start
                     new_ke = ke - ke / total_ke2 * energy_diff_start
                     # print "new should be", new_ke
-                    p1.set_kinetic_energy(new_ke)
+                    p.set_kinetic_energy(new_ke)
                     # print "new KE is now", p1.kinetic_energy()
 
         pygame.quit()
@@ -904,7 +909,7 @@ class Simulation:
 
         min_scale = 1.0
         max_scale = 3.0
-        size *= (z / float(screen_depth)) * (max_scale - min_scale) + min_scale
+        size *= (z / float(self.screen_depth)) * (max_scale - min_scale) + min_scale
         size = abs(int(size))
 
         pygame.draw.circle(self.screen, color, (x, y), size, 0)
@@ -914,9 +919,9 @@ class Simulation:
 
         crt.clear_and_home()
 
-        a_width = screen_width / pixelsPerAngstrom
-        a_height = screen_height / pixelsPerAngstrom
-        print(f"PixelsPerAngstrom", pixelsPerAngstrom, end='')
+        a_width = self.screen_width / self.pixels_per_angstrom
+        a_height = self.screen_height / self.pixels_per_angstrom
+        print(f"PixelsPerAngstrom", self.pixels_per_angstrom, end='')
         print(f"  Screen ({a_width}A x {a_height:.1f}A)", end='')
         print(" ", self.title)
 
@@ -924,12 +929,10 @@ class Simulation:
         print("  DT is: %4.1e" % self.dt, end='')
         print(f"  FPS:{self.fps_avg:.1f}")
 
-        if Stop_at > 0.0:
-            print(f"    Stop at {Stop_at * 1000_000_000:.20f} ns")
+        if self.stop_at > 0.0:
+            print(f"    Stop at {self.stop_at * 1000_000_000:.20f} ns")
 
-        print()
-        print("doMagnetic:", doMagnetic, "  doMagneticInverse:",
-              doMagneticInverse)
+        print("doMagnetic:", doMagnetic)
         print()
 
         re = ((self.total_ke - self.starting_total_ke) + (
@@ -956,7 +959,8 @@ class Simulation:
 
         print()
 
-        print("Inside R limit:", InsideRLimitCount, "  P Bounce:", self.p_bounce_count,
+        print("Inside R limit:", self.inside_r_limit_count,
+              "  P Bounce:", self.p_bounce_count,
               "  E Bounce:", self.e_bounce_count)
 
         self.last_ke = self.total_ke
@@ -1005,21 +1009,21 @@ class Simulation:
         total_avg_ke = 0.0
         total_momentum_mag = 0.0
 
-        for i in range(len(self.world)):
-            p1 = self.world[i]
-            ke = p1.kinetic_energy()
-            p1.avgKE += (ke - p1.avgKE) * 0.0001
-            total_avg_ke += p1.avgKE
-            total_momentum_mag += magnitude(p1.cur_state.momentum())
+        for p in self.world:
+            ke = p.kinetic_energy()
+            p.avgKE += (ke - p.avgKE) * 0.0001
+            total_avg_ke += p.avgKE
+            total_momentum_mag += magnitude(p.cur_state.momentum())
 
         for i in range(len(self.world)):
-            p1 = self.world[i]
-            print(f"{p1.symbol}{i}", end='')
-            print(f" vx:{p1.v()[0]:10.2e}  vy:{p1.v()[1]:10.2e}", end='')
-            vc = magnitude(p1.v()) / CONST_C
+            p = self.world[i]
+            print(f"{p.symbol}{i}", end='')
+            pv = p.cur_state.v
+            print(f" vx:{pv[0]:10.2e}  vy:{pv[1]:10.2e}", end='')
+            vc = magnitude(pv) / CONST_C
             self.max_vc = max(self.max_vc, vc)
             print(f" {vc:0.5f}c", end='')
-            print(" x:%6.2f A" % (p1.cur_state.r[0] / Angstrom), end=' ')
+            print(" x:%6.2f A" % (p.cur_state.r[0] / Angstrom), end=' ')
             # print " KE:%10.2e" % p1.avgKE
             # if total_avg_ke:
             #     print(" KE:%6.2f%%" % (p1.avgKE * 100 / total_avg_ke))
@@ -1027,17 +1031,17 @@ class Simulation:
             #     print(" KE:?????")
             if self.total_ke:
                 print(" KE:%5.1f%%" % (
-                        p1.kinetic_energy() * 100 / self.total_ke), end='')
+                        p.kinetic_energy() * 100 / self.total_ke), end='')
             else:
                 print(" KE:?", end='')
-            momentum = magnitude(p1.cur_state.momentum())
+            momentum = magnitude(p.cur_state.momentum())
             print(f"  p:{momentum:.2e}", end='')
             if total_momentum_mag:
                 print(f" {momentum * 100 / total_momentum_mag:5.1f}%", end='')
 
             # Frequency of electron in orbit.
-            if isinstance(p1, Electron) or isinstance(p1, Proton):
-                f = p1.cur_state.f_from_v()
+            if isinstance(p, Electron) or isinstance(p, Proton):
+                f = p.cur_state.f_from_v()
                 print(f" f:{f / 1_000_000_000_000_000:.1e} PHz", end='')
                 print(f"  wl:{CONST_C * 1e9 / f:.3e} nm",
                       end='')  # wave length
@@ -1079,7 +1083,7 @@ class Simulation:
                 # error = (self.total_ke - total_ke2) + (self.total_pe - total_pe2)
                 # print "Energy error after iteration     %18.10e" % error
 
-            if energyFix2:
+            if Energy_fix2:
                 # Ok, one last time, fudge velocity based on current position and
                 # total force for this position This is just always good I think.
                 # Probably shouldn't be an option.
@@ -1110,24 +1114,24 @@ class Simulation:
             # Dynamically change dt to maintain error and maximise simulation speed
             ######################################################################
 
-            if dtAdjust and total_ke2 != 0.0:
+            if self.dt_adjust and total_ke2 != 0.0:
                 # print "==DO DT ADJUST self.cycleCount", self.cycleCount, "abs(energy_diff)", abs(energy_diff),
                 # print "total_ke2", total_ke2, "percent", abs(energy_diff) / total_ke2
-                if self.dt < dtMax and self.cycle_count > 3 and abs(
+                if self.dt < self.dt_max and self.cycle_count > 3 and abs(
                         self.energy_diff_last) / total_ke2 < 0.0001:
                     # print "SPEEDUP -- increase DT abs(diff)/total is", abs(energy_diff) / total_ke2
                     self.dt *= 2.0
-                    self.dt = min(self.dt, dtMax)
+                    self.dt = min(self.dt, self.dt_max)
                     # self.cycleCount = 0
                     # continue
                     # No need to restart -- take this move as fine but use a larger dt
                     # for the next move
 
-                elif self.dt > dtMin and abs(
+                elif self.dt > self.dt_min and abs(
                         self.energy_diff_last) / total_ke2 > 0.001:
                     # print "SLOWDOWN -- reduce DT abs(diff)/total is", abs(energy_diff) / total_ke2
                     self.dt /= 2.0
-                    self.dt = max(self.dt, dtMin)
+                    self.dt = max(self.dt, self.dt_min)
                     for p1 in self.world:
                         p1.reset_state()
                     self.cycle_count = 0
@@ -1207,30 +1211,30 @@ class Simulation:
             vx *= -1
             p.cur_state.r[0] = self.pixels_to_space(inset)
 
-        if x > screen_width - inset and vx > 0:
+        if x > self.screen_width - inset and vx > 0:
             bounce = True
             vx *= -1
-            p.cur_state.r[0] = self.pixels_to_space(screen_width - inset)
+            p.cur_state.r[0] = self.pixels_to_space(self.screen_width - inset)
 
         if y < inset and vy < 0:
             bounce = True
             vy *= -1
             p.cur_state.r[1] = self.pixels_to_space(inset)
 
-        if y > screen_height - inset and vy > 0:
+        if y > self.screen_height - inset and vy > 0:
             bounce = True
             vy *= -1
-            p.cur_state.r[1] = self.pixels_to_space(screen_height - inset)
+            p.cur_state.r[1] = self.pixels_to_space(self.screen_height - inset)
 
         if z < inset and vz < 0:
             bounce = True
             vz *= -1
             p.cur_state.r[2] = self.pixels_to_space(inset)
 
-        if z > screen_depth - inset and vz > 0:
+        if z > self.screen_depth - inset and vz > 0:
             bounce = True
             vz *= -1
-            p.cur_state.r[2] = self.pixels_to_space(screen_depth - inset)
+            p.cur_state.r[2] = self.pixels_to_space(self.screen_depth - inset)
 
         if bounce:
             # Process bounce for this particle
@@ -1252,14 +1256,12 @@ class Simulation:
 
         return bounce
 
-    @staticmethod
-    def space_to_pixels(space):
+    def space_to_pixels(self, space):
         # 0,0 is the same in both and is the top left corner of the screen
-        return int(pixelsPerAngstrom * space / Angstrom)
+        return int(self.pixels_per_angstrom * space / Angstrom)
 
-    @staticmethod
-    def pixels_to_space(pixels):
-        return pixels * Angstrom / pixelsPerAngstrom
+    def pixels_to_space(self, pixels):
+        return pixels * Angstrom / self.pixels_per_angstrom
 
 
 def unit_test():
