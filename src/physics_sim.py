@@ -1,11 +1,15 @@
 #!/usr/bin/python
 
 """
-    physics.py - Atomic particle simulation experiments
+    physics-sim.py - Atomic particle simulation module
 
     2016-05-18 Started this file.  Took it from xnet.py from my AI work.
     2021-02-05 Created PyCharm Project, Put on Github, converted
                 to python3.9, and started major cleanup of this old code.
+    2021-02-21 Major code refactor and cleanup happening the past weeks.
+                Rename from physics.py to physics_sim.py
+                Turn into module.
+                Move experiment run code into separate files.
 
 """
 
@@ -59,10 +63,6 @@ pixelsPerAngstrom = 200.0
 Stop_at = 0.0               # Run forever
 
 
-def main():
-    sol_test()
-
-
 def magnitude(vec: ndarray) -> float:
     """ Compute length of 3D vector. """
     return np.linalg.norm(vec)
@@ -70,7 +70,7 @@ def magnitude(vec: ndarray) -> float:
 
 class ParticleState:
     def __init__(self, p: 'Particle'):
-        """ Simulation State of Particle p. """
+        """ Simulation State of a Particle. """
         self.r = np.zeros(3)  # x, y, z, Position
         self.v = np.zeros(3)  # x, y, z, Velocity
         self.f = np.zeros(3)  # x, y, z, Force
@@ -180,11 +180,6 @@ class ParticleState:
     #     # self.end_fy = self.fy
     #     # self.end_fz = self.fz
     #     self.end_state.f = np.copy(self.cur_state.f)
-
-
-    def add_static_force(self):
-        """ Add particle static forces to state. """
-        self.f += self.p.static_f
 
     def es_force(self, p_state: 'ParticleState'):
         """ Electrostatic force on self by p_state per Coulomb's law. """
@@ -633,286 +628,17 @@ class Proton(Particle):
         self.symbol = 'p'
 
 
-def total_kinetic_energy(world: list[Particle]):
-    total_ke = 0.0
-
-    for p in world:
-        total_ke += p.kinetic_energy()
-
-    return total_ke
-
-
-def total_potential_energy(world: list[Particle]):
-    total_pe = 0.0
-
-    for i in range(len(world)):
-        for j in range(i + 1, len(world)):
-            total_pe += world[i].potential_energy(world[j])
-
-    return total_pe
-
-
-def total_end_kinetic_energy(world: list[Particle]):
-    total_ke = 0.0
-
-    for p in world:
-        total_ke += p.kinetic_end_energy()
-
-    return total_ke
-
-
-def total_end_potential_energy(world: list[Particle]):
-    total_pe = 0.0
-
-    for i in range(len(world)):
-        for j in range(i + 1, len(world)):
-            total_pe += world[i].potential_end_energy(world[j])
-
-    return total_pe
-
-
-#####################################################################
-# Move objects to place center of mass in the middle of the screen
-#####################################################################
-
-def center_mass(world: list[Particle]):
-    """ Move all objects to put the center of mass in the center of
-        the Screen.
-    """
-    center_m = center_of_mass(world)
-
-    center_x = (screen_width / pixelsPerAngstrom * Angstrom) / 2.0
-    center_y = (screen_height / pixelsPerAngstrom * Angstrom) / 2.0
-    center_z = (screen_depth / pixelsPerAngstrom * Angstrom) / 2.0
-
-    for p in world:
-        # TODO improve this
-        p.cur_state.r[0] += center_x - center_m[0]
-        p.cur_state.r[1] += center_y - center_m[1]
-        p.cur_state.r[2] += center_z - center_m[2]
-
-
-def center_of_mass(world: List[Particle]) -> ndarray:
-    """ return center of mass of the world as pos vector. """
-    # cx = cy = cz = 0.0
-    # tm = 0.0
-    # for p in world:
-    #     cx += p.cur_state_r0 * p.mass
-    #     cy += p.cur_state_r1 * p.mass
-    #     cz += p.cur_state_r2 * p.mass
-    #     tm += p.mass
-    # x = cx / tm
-    # y = cy / tm
-    # z = cz / tm
-    # return x, y, z
-    c = np.zeros(3)
-    total_mass = 0.0
-    for p in world:
-        c += p.cur_state.r * p.mass
-        total_mass += p.mass
-    return c / total_mass
-
-
-# fastTest()
-# neutron_gravity_test()
-# magneticTest()
-# forceCircleTest()
-# mag_circle_test()
-
-""" Speed of light experiment.
-    2021-02-11.
-    Create a 1D string of electrons and make them stable
-    by adding and extra artificial force to hold it in place.
-    Then wiggle the first one, and watch how the rest respond.
-    I'm hoping it will it show a wave moving through the string
-    even though the simulation uses no time delay for the coulomb
-    force moving them.
-    
-    First calculation.
-    The 10 electrons, passed the energy of the first e to the 9th
-    in this much time.  This is where the KE of the 9th maxed.
-    spacing is 2/10 A so 9 times that is
-    18/10 A in this much time:
-    Time now is 0.0000000000000000243099999999994800664042
-    
-    Output is:
-    Speed: speed=7404360.349, c=299792458.000 speed/c=0.025
-
-"""
-
-
-def sol_test():
-    # speed = ((18/10) * Angstrom) / 0.00000000000000002430999999
-    # print(f"Speed: {speed=:.3f}, {c=:.3f} {speed/c=:.3f}")
-    # exit()
-    # num = 8
-    # spacing = (2 / num) * Angstrom
-    # for cnt in range(num):
-    #     pi_world.append(ParticleImage(Electron(cnt * spacing, 0.0, 0.0)))
-    # # pi_world[0].p.lock_in_place = True
-    # pi_world[0].p.vx = .5*c
-    # # TODO - just a marker to find this code
-    world: List[Particle] = [Proton(0.2 * Angstrom, 0.0, 0.0),
-                             Proton(0.5 * Angstrom, 0.0, 0.0),
-                             Proton(1.0 * Angstrom, 0.1 * Angstrom, 0.0),
-                             Proton(1.2 * Angstrom, 0.1 * Angstrom,
-                                    1.0 * Angstrom),
-                             ]
-    e1 = Electron(0.0 * Angstrom, 0.0, 0.0)
-    world.append(e1)
-    e1.cur_state.v[1] = .011 * CONST_C
-    e2 = Electron(0.8 * Angstrom, 0.0, 0.0)
-    world.append(e2)
-    e2.cur_state.v[1] = .011 * CONST_C
-    world.append(Electron(0.0 * Angstrom, 0.4 * Angstrom, 0.2 * Angstrom))
-    world.append(Electron(0.0 * Angstrom, 0.1 * Angstrom, 0.2 * Angstrom))
-
-    sim = Simulation(world)
-    sim.run()
-
-
-# p1 = Proton(Angstrom * 0.0, 0.0, 0.0 * Angstrom, n=3.0)
-# e1 = Electron(Angstrom * 0.25, 0.0, 0.0 * Angstrom)
-# e2 = Electron(Angstrom * -0.25, 0.0 * Angstrom, 0.0 * Angstrom)
-
-# e1.vy = 200000.0
-# e1.vy = 100000.0
-# e1.vy = 0.0
-# e1.vy = 1600000.0
-# e1.vy = 16000000.0
-# # e1.vx = 800000.0
-# e1.vy = 3000000.0
-
-# # This is what the below calculates for the perfect circular orbit
-# # Velocity for the ep pair spaced at 0.25A
-# e1.vy = 3181993.44316 + 100
-# # p1.vy = -3181993.44316 * e1.mass / p1.mass
-# e2.vy = -3181993.44316
-# # e2.vz = -3181993.44316 / 10
-# # e1.vy = p1.vy = 0.0
-# # e1.vz = 800000.0
-
-# if False:  # I have no clue what this code does 5-11-2018 CW
-#     # 2021-02-06 it's calculating the velocity of a circular orbit.
-#     r = Angstrom * 0.25
-#     print("r is", r)
-#     r = e1.x - p1.x
-#     print("r is", r)
-#     rCenter = r * p1.mass / (p1.mass + e1.mass)
-#     e1.vz = e1.c * math.sqrt(
-#         abs(1e-7 * e1.charge * p1.charge * rCenter / (r * r * e1.mass)))
-#     rCenter = r * e1.mass / (p1.mass + e1.mass)
-#     p1.vz = -p1.c * math.sqrt(
-#         abs(1e-7 * e1.charge * p1.charge * rCenter / (r * r * p1.mass)))
-#     print("p1.vz is", p1.vz, "momentum is", p1.momentum())
-#     print("e1.vz is", e1.vz, "momentum is", e1.momentum())
-#     print("p1.vz - e1.vz", p1.vz - e1.vz)
-#
-#     p1.vy = p1.vz
-#     e1.vy = e1.vz
-#     p1.vz = 0.0
-#     e1.vz = 0.0
-#     e1.vy /= 2.0
-
-# sys.exit(1)
-# e1.vz = 1000000.0
-
-# Does adding a third electron away from an orbiting pair get sucked in?
-# p2 = Proton(100.0 * Angstrom, 0.0 * Angstrom, 0.0 * Angstrom)
-# e2 = Electron(100.25 * Angstrom, 0.0 * Angstrom, 0.0 * Angstrom)
-# e2.vy = e1.vy # copy orbital velocity for second pair
-# p2.vy = p1.vy
-
-
-# p2 =   Proton(Angstrom * 0.5, Angstrom * 0.0,  0.0 * Angstrom)
-# e2 = Electron(Angstrom * 1.5, Angstrom * 0.0, -0.5 * Angstrom)
-# e2.vy = 1600000.0
-# e2.vy = 800000.0
-
-# p3 = Proton(Angstrom * 6.0, Angstrom * 0.0, 0.0)
-# e3 = Electron(Angstrom * 7.0, Angstrom * 0.0, 0.0)
-# e3.vy = 800000.0
-# e3.vy = 1600000.0
-#
-# pi_world = []
-
-# if True:
-#     pi1 = ParticleImage(p1)
-#     pi_world.append(pi1)
-#     pi2 = ParticleImage(e1)
-#     pi_world.append(pi2)
-#     # pi3 = ParticleImage(p2)
-#     # pi_world.append(pi3)
-#     pi4 = ParticleImage(e2)
-#     pi_world.append(pi4)
-
-# if False:
-#     pi3 = ParticleImage(p2)
-#     pi_world.append(pi3)
-#     if False:
-#         pi4 = ParticleImage(e2)
-#         pi_world.append(pi4)
-
-# if False:
-#     pi5 = ParticleImage(p3)
-#     pi_world.append(pi5)
-#     pi6 = ParticleImage(e3)
-#     pi_world.append(pi6)
-
-# if False:  # Two electrons
-#     e1 = Electron(Angstrom * 0.1, Angstrom * 1.0, 0.0)
-#     pi_world.append(ParticleImage(e1))
-#     e2 = Electron(Angstrom * 5.1, Angstrom * 1.0, 0.0)
-#     pi_world.append(ParticleImage(e2))
-
-# if False:
-#     # Random particles
-#
-#     p = 2
-#     e = 2
-#     percentOfScreen = 0.10
-#     e1 = Electron()  # Just need any particle
-#     momentum = e1.mass * e1.c / 1000.0
-#     world = []
-#     x_width = (screen_width * percentOfScreen / pixelsPerAngstrom) * Angstrom
-#     y_width = (screen_height * percentOfScreen / pixelsPerAngstrom) * Angstrom
-#
-#     for i in range(p):
-#         x = random.random() * x_width
-#         y = random.random() * y_width
-#         z = random.random() * min(x_width, y_width)
-#         # z = 0.0
-#         p = Proton(x, y, z)
-#         world.append(p)
-#         p.vx = random.random() * momentum / p.mass
-#         p.vy = random.random() * momentum / p.mass
-#         p.vz = random.random() * momentum / p.mass
-#
-#     for i in range(e):
-#         x = random.random() * x_width
-#         y = random.random() * y_width
-#         z = random.random() * min(x_width, y_width)
-#         # z = 0.0
-#         p = Electron(x, y, z)
-#         world.append(p)
-#         p.vx = random.random() * momentum / p.mass
-#         p.vy = random.random() * momentum / p.mass
-#         p.vz = random.random() * momentum / p.mass
-#
-#     for p in world:
-#         pi_world.append(ParticleImage(p))
-
-
 class Simulation:
     """ A 3D simulation of electrons and protons interacting.
-        Includes a graphic display window.
+        Includes a graphic display animation.
     """
 
-    def __init__(self, world: List[Particle]):
+    def __init__(self, world: List[Particle], title='Physics-Sim'):
         self.world = world
+        self.title = title      # Screen Title
 
         self.fps_limit = 500    # pygame thing - Frames Per Second
-        self.fps_avg = 1.0      # Computed speed of simulation
+        self.fps_avg = 1.0      # Computed average speed of simulation
         self.run_me = True
         self.cycle_count = 0
         self.now = 0.0
@@ -927,12 +653,12 @@ class Simulation:
         self.p_pair_last_distance: Dict[
             Tuple[float, float], Tuple[float, float]] = {}
 
-        center_mass(self.world)
+        self.center_mass()
         self.zero_momentum()
         self.init_forces()
 
-        self.total_ke = total_kinetic_energy(self.world)
-        self.total_pe = total_potential_energy(self.world)
+        self.total_ke = self.total_kinetic_energy()
+        self.total_pe = self.total_potential_energy()
 
         self.last_ke = self.total_ke
         self.last_pe = self.total_pe
@@ -948,7 +674,41 @@ class Simulation:
 
         self.screen = pygame.display.set_mode(screen_size)
         self.clock = pygame.time.Clock()
-        pygame.display.set_caption('Physics-Sim')
+        pygame.display.set_caption(self.title)
+
+    def center_mass(self):
+        """ Move world center of mass to center of screen. """
+        center_m = self.center_of_mass()
+
+        center_x = (screen_width / pixelsPerAngstrom * Angstrom) / 2.0
+        center_y = (screen_height / pixelsPerAngstrom * Angstrom) / 2.0
+        center_z = (screen_depth / pixelsPerAngstrom * Angstrom) / 2.0
+
+        for p in self.world:
+            # TODO improve this
+            p.cur_state.r[0] += center_x - center_m[0]
+            p.cur_state.r[1] += center_y - center_m[1]
+            p.cur_state.r[2] += center_z - center_m[2]
+
+    def center_of_mass(self) -> ndarray:
+        """ return center of mass of the world as pos vector. """
+        # cx = cy = cz = 0.0
+        # tm = 0.0
+        # for p in world:
+        #     cx += p.cur_state_r0 * p.mass
+        #     cy += p.cur_state_r1 * p.mass
+        #     cz += p.cur_state_r2 * p.mass
+        #     tm += p.mass
+        # x = cx / tm
+        # y = cy / tm
+        # z = cz / tm
+        # return x, y, z
+        c = np.zeros(3)
+        total_mass = 0.0
+        for p in self.world:
+            c += p.cur_state.r * p.mass
+            total_mass += p.mass
+        return c / total_mass
 
     def zero_momentum(self):
         """
@@ -984,21 +744,48 @@ class Simulation:
         # cur_state and end_state are the same now
         # and both include valid forces.
 
-        # if False:
-        # shouldn't be done here -- should be done in test code.
-        #     # compute static starting force to keep particles in place
-        #     p1.static_fx = - p1.fx
-        #     p1.static_fy = - p1.fy
-        #     p1.static_fz = - p1.fz
-        #     p1.add_static_force()
-
     def compute_end_forces(self):
         """ Update end_state forces using end_state position and velocity. """
         for p1 in self.world:
             p1.end_state.zero_force()
             for p2 in self.world:
                 p1.end_state.add_force(p2.end_state)
-            p1.end_state.add_static_force()
+            # Add constant static force (experimental hack)
+            p1.end_state.f += p1.static_f
+
+    def total_kinetic_energy(self):
+        total_ke = 0.0
+
+        for p in self.world:
+            total_ke += p.kinetic_energy()
+
+        return total_ke
+
+    def total_potential_energy(self):
+        total_pe = 0.0
+
+        for i in range(len(self.world)):
+            for j in range(i + 1, len(self.world)):
+                total_pe += self.world[i].potential_energy(self.world[j])
+
+        return total_pe
+
+    def total_end_kinetic_energy(self):
+        total_ke = 0.0
+
+        for p in self.world:
+            total_ke += p.kinetic_end_energy()
+
+        return total_ke
+
+    def total_end_potential_energy(self):
+        total_pe = 0.0
+
+        for i in range(len(self.world)):
+            for j in range(i + 1, len(self.world)):
+                total_pe += self.world[i].potential_end_energy(self.world[j])
+
+        return total_pe
 
     def move_all(self):
         """ Copy end_state to cur_state for all particles. """
@@ -1036,8 +823,8 @@ class Simulation:
                 self.bounce_particles()
                 self.draw_world()
 
-            self.total_ke = total_kinetic_energy(self.world)
-            self.total_pe = total_potential_energy(self.world)
+            self.total_ke = self.total_kinetic_energy()
+            self.total_pe = self.total_potential_energy()
 
             if loop_cnt % 20 == 0:
                 self.print_stats()
@@ -1127,10 +914,12 @@ class Simulation:
 
         crt.clear_and_home()
 
-        print("PixelsPerAngstrom", pixelsPerAngstrom, end=' ')
-        print("Screen (%.1fx%.1f) A" % (
-            screen_width / pixelsPerAngstrom,
-            screen_height / pixelsPerAngstrom))
+        a_width = screen_width / pixelsPerAngstrom
+        a_height = screen_height / pixelsPerAngstrom
+        print(f"PixelsPerAngstrom", pixelsPerAngstrom, end='')
+        print(f"  Screen ({a_width}A x {a_height:.1f}A)", end='')
+        print(" ", self.title)
+
         print(f"Time now is {self.now * 1000_000_000:.20f} ns", end='')
         print("  DT is: %4.1e" % self.dt, end='')
         print(f"  FPS:{self.fps_avg:.1f}")
@@ -1180,7 +969,6 @@ class Simulation:
         self.print_particle_stats()
 
         print(f"                  Max Velocity: {self.max_vc:7.5f}c")
-
 
     def print_proton_distance(self):
         """
@@ -1301,8 +1089,8 @@ class Simulation:
 
             # Now calculate total Energy after this move.
 
-            total_ke2 = total_end_kinetic_energy(self.world)
-            total_pe2 = total_end_potential_energy(self.world)
+            total_ke2 = self.total_end_kinetic_energy()
+            total_pe2 = self.total_end_potential_energy()
 
             # energy_diff = (total_ke2 + total_pe2) - (self.total_ke + self.total_pe) # last move
             # error only
@@ -1382,8 +1170,8 @@ class Simulation:
             # so the bounce doesn't make it look like we have a large
             # simulation error (energy change from start of run).
 
-            self.total_ke = total_kinetic_energy(self.world)
-            self.total_pe = total_potential_energy(self.world)
+            self.total_ke = self.total_kinetic_energy()
+            self.total_pe = self.total_potential_energy()
 
             self.starting_total_ke = self.total_ke
             self.starting_total_pe = self.total_pe
@@ -1474,5 +1262,10 @@ class Simulation:
         return pixels * Angstrom / pixelsPerAngstrom
 
 
+def unit_test():
+    """ Nothing here yet. """
+    pass
+
+
 if __name__ == '__main__':
-    main()
+    unit_test()
