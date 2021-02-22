@@ -9,7 +9,7 @@ import physics_sim as ps
 
 
 def main():
-    sim = ps.Simulation(title="4H Test")
+    sim = ps.Simulation(title="4H Test", dt_max=2e-20)
 
     v = .012 * ps.CONST_C
 
