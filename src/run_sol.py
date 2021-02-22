@@ -32,29 +32,26 @@
     Curt Welch curt@kcwc.com
 """
 
-from typing import List
 import physics_sim as ps
 
 
 def main():
     """ Speed of Light experiment, """
-    # speed = ((18/10) * ps.Angstrom) / 0.00000000000000002430999999
-    # print(f"Speed: {speed=:.3f}, {c=:.3f} {speed/c=:.3f}")
-    # exit()
 
-    world: List[ps.Particle] = []
     c = ps.CONST_C  # Speed of Light in m/s
 
+    sim = ps.Simulation(title="SOL Test")
+
     num = 20
-    spacing = (2 / num) * ps.Angstrom
+    spacing = (2 / num)
     for cnt in range(num):
-        world.append(ps.Electron(cnt * spacing, 0.0, 0.0))
-    # pi_world[0].p.lock_in_place = True
-    world[4].cur_state.v[0] = .05*c
+        sim.add_e_a((cnt * spacing, 0.0, 0.0))
 
-    sim = ps.Simulation(world, title="SOL Test")
+    # world[0].p.lock_in_place = True
+    sim.world[4].cur_state.v[0] = .05*c
 
-    # The particle states, including the forces have been re-defined now,
+    sim.init_world()
+    # The particle states, including the forces have been re-defined now.
 
     for p in sim.world:
         # Set static starting force to keep particles in place.

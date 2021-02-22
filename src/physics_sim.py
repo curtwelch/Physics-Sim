@@ -17,40 +17,40 @@ import time
 import math
 import numpy as np
 from numpy import ndarray
-from typing import List, Tuple, Dict
+from typing import Tuple, Dict
 # import timeit
 import pygame
 
 import crt
 
-BLACK = 0, 0, 0
-WHITE = 255, 255, 255
-RED = 255, 0, 0
+BLACK = 0, 0, 0         # Color of an electron
+WHITE = 255, 255, 255   # Screen Background color
+RED = 255, 0, 0         # Color of a Proton
 
-Angstrom = 1.0e-10          # One Angstrom 1e-10 meters
+ANGSTROM = 1.0e-10          # One ANGSTROM is 1e-10 meters
 CONST_C = 299792458.0       # Speed of light m/s - defined constant
 # CONST_KE = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e)  K(sub)e
 # CONST_KE = self.c * self.c * 1.0e-7  # OLD?
 CONST_KE = 8.9875517923e9   # Coulomb's constant; New? 8.9875517923(14)×10^9
 
-# RLimit = 0.1 * Angstrom       # Radius limit hack
-# RLimit = 0.0001 * Angstrom    # Radius limit hack
-RLimit = 0.0000001 * Angstrom   # Radius limit hack
+CONST_P_CHARGE = +1.60218e-19
+CONST_P_MASS = 1.672621898e-27
 
-# These two ae used to turn off and various test for
-# electromagnetic forces on particles.
-# Currently, what it enables is the use of v_force()
-# Which is a made up idea for a force based on relative velocity.
-doMagnetic = True
+CONST_E_CHARGE = -CONST_P_CHARGE
+CONST_E_MASS = 9.10938356e-31
 
-Energy_fix = False  # fix based on total PE+KE at start
-Energy_fix2 = False
+# RLimit = 0.1 * ANGSTROM       # Radius limit hack
+# RLimit = 0.0001 * ANGSTROM    # Radius limit hack
+RLimit = 0.0000001 * ANGSTROM   # Radius limit hack
+
+Energy_fix = False      # fix based on total PE+KE at start
+Energy_fix2 = False     # TODO is this useful or should be be deleted?
 
 
 def magnitude(vec: ndarray) -> float:
     """ Compute length of 3D vector.
-
-        a wrapper for np.linalg.norm(vec)
+        Just a wrapper for np.linalg.norm(vec)
+        sqrt(sum of squares)
     """
     return np.linalg.norm(vec)
 
@@ -104,9 +104,9 @@ class ParticleState:
         # freq = mv³j² / 2πkq²
         # v = magnitude(p1.v())
         if isinstance(self.p, Electron):
-            j = 1.0 + Electron().mass / Proton().mass
+            j = 1.0 + CONST_E_MASS / CONST_P_MASS
         else:
-            j = 1.0 + Proton().mass / Electron().mass
+            j = 1.0 + CONST_P_MASS / CONST_E_MASS
 
         # r = (p1.ke * p1.charge**2) / (p1.mass * v**2 * j**2)
         # d = r*j
@@ -130,7 +130,7 @@ class ParticleState:
         f: ndarray = self.es_force(p_state)
 
         # Add electro-drag force
-        if doMagnetic:
+        if self.p.sim.do_v_force:
             f += self.v_force(p_state)
 
         return f
@@ -158,7 +158,7 @@ class ParticleState:
     #     # self.fz += force * dz / r
     #     self.cur_state.f += force * dr / r
     #
-    #     if doMagnetic:
+    #     if do_v_force:
     #         f = self.v_force(p.cur_state)
     #         # self.fx += f[0]
     #         # self.fy += f[1]
@@ -275,38 +275,41 @@ class ParticleState:
 
 
 class Particle:
-    """ The root class for protons and electrons. """
+    """ The root class for Protons and Electrons.
+        Units are standard SI: meters, seconds, Newtons, Kg, Coulombs
+    """
 
-    def __init__(self, x=0.0, y=0.0, z=0.0):
-        # Units all standard SI: meters, seconds, Newtons, Kg, Coulombs
+    def __init__(self, sim: 'Simulation',
+                 r: Tuple[float, float, float],
+                 v=(0.0, 0.0, 0.0),
+                 ):
+        """ The Base class for Electrons and Protons.
+
+        Args:
+            sim: Back reference to the Simulation()
+            r: 3D position vector in meters.
+            v: 3D position vector in m/s
+        """
+        self.sim = sim
         self.cur_state = ParticleState(self)
         self.end_state = ParticleState(self)
-        self.cur_state.r[:] = (x, y, z)
+        self.cur_state.r[:] = r
+        self.cur_state.v[:] = v
 
         self.static_f = np.zeros(3)  # Static forces for hack
 
         self.lock_in_place = False  # Don't move if true.
 
-        self.avgKE = 0.0  # Running average of KE
-        self.avgPE = 0.0  # Running average of PE
+        self.avgKE = 0.0    # Running average of KE
+        self.avgPE = 0.0    # Running average of PE
 
-        self.charge = 0.0  # Defined by subclass for e and p
-        self.mass = 0.0  # Defined in subclass for e and p
-        self.symbol = 'e'  # Defined in subclass for e and p
+        self.charge = 0.0   # Defined by subclass for e and p
+        self.mass = 0.0     # Defined in subclass for e and p
+        self.symbol = 'e'   # Defined in subclass for e and p
 
-    def r(self):
-        """ Current 3D Position Vector. """
-        return self.cur_state.r
-
-    # def v(self):
-    #     """ Current 3D Velocity vector. """
-    #     # return self.vx, self.vy, self.vz
-    #     return self.cur_state.v
-
-    # def f(self):
-    #     """ Current 3D force vector. """
-    #     # return self.fx, self.fy, self.fz
-    #     return self.cur_state.f
+    # def r(self):
+    #     """ Current 3D Position Vector. """
+    #     return self.cur_state.r
 
     def add_static_force(self):
         """ Add static forces to beginning and ending forces. """
@@ -587,19 +590,32 @@ class Particle:
 
 class Electron(Particle):
     """ A Single Electron. """
-
-    def __init__(self, x=0.0, y=0.0, z=0.0):
-        Particle.__init__(self, x, y, z)
-        self.charge = -1.60218e-19  # in Coulombs
-        self.mass = 9.10938356e-31
+    def __init__(self, sim: 'Simulation',
+                 r: Tuple[float, float, float],
+                 v=(0.0, 0.0, 0.0)):
+        super().__init__(sim, r, v)
+        self.charge = CONST_E_CHARGE
+        self.mass = CONST_E_MASS
         self.symbol = 'e'
 
 
 class Proton(Particle):
-    def __init__(self, x=0.0, y=0.0, z=0.0, n=1.0):
-        Particle.__init__(self, x, y, z)
-        self.charge = n * +1.60218e-19  # in Coulombs
-        self.mass = n * 1.672621898e-27
+    """ A Single Proton.
+    """
+    def __init__(self, sim: 'Simulation',
+                 r: Tuple[float, float, float],
+                 v=(0.0, 0.0, 0.0),
+                 n=1.0):
+        """ A single Proton
+
+        Args:
+            r: 3D position vector in meters
+            v: 3D velocity vector in m / s
+            n: Proton has n times the normal charge and mass
+        """
+        super().__init__(sim, r, v)
+        self.charge = n * CONST_P_CHARGE  # in Coulombs
+        self.mass = n * CONST_P_MASS
         self.symbol = 'p'
 
 
@@ -608,7 +624,7 @@ class Simulation:
         Includes a graphic display animation.
     """
 
-    def __init__(self, world: List[Particle],
+    def __init__(self,
                  title='Physics-Sim',
                  screen_width=600,
                  screen_height=400,
@@ -618,6 +634,7 @@ class Simulation:
                  dt_max=1.0,
                  dt_adjust=True,
                  stop_at=0.0,
+                 do_v_force=True,
                  ):
         """
         3D Simulation of Protons and Electrons.
@@ -633,8 +650,8 @@ class Simulation:
             dt_adjust: boolean - Adjust time step automatically
             stop_at: seconds - simulation stops when it goes past this.
                      0.0 means run forever.
+            do_v_force: boolean - include v_force calculations
         """
-        self.world = world
         self.title = title      # Screen Title
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -644,6 +661,9 @@ class Simulation:
         self.dt_max = dt_max
         self.dt_adjust = dt_adjust
         self.stop_at = stop_at  # Simulations time to stop
+        self.do_v_force = do_v_force
+
+        self.world: list[Particle] = []
 
         self.fps_limit = 500    # pygame thing - Frames Per Second
         self.fps_avg = 1.0      # Computed average speed of simulation
@@ -654,20 +674,11 @@ class Simulation:
         self.e_bounce_count = 0
         self.p_bounce_count = 0
 
-        self.lastD = 0.0
-        self.last_now = self.now
-        self.lastV = 0.0
-        self.lastA = 0.0
-
         self.p_pair_last_distance: Dict[
             Tuple[float, float], Tuple[float, float]] = {}
 
-        self.center_mass()
-        self.zero_momentum()
-        self.init_forces()
-
-        self.total_ke = self.total_kinetic_energy()
-        self.total_pe = self.total_potential_energy()
+        self.total_ke = 0.0
+        self.total_pe = 0.0
 
         self.last_ke = self.total_ke
         self.last_pe = self.total_pe
@@ -686,15 +697,76 @@ class Simulation:
         self.clock = pygame.time.Clock()
         pygame.display.set_caption(self.title)
 
+    def add_p(self,
+              r: Tuple[float, float, float],
+              v=(0.0, 0.0, 0.0),
+              n=1.0):
+        """ Add a single Proton to the simulation.
+
+        Args:
+            r: 3D position vector in meters
+            v: 3D velocity vector in m / s
+            n: Proton has n times the normal charge and mass
+        """
+        self.world.append(Proton(self, r, v, n))
+
+    def add_e(self,
+              r: Tuple[float, float, float],
+              v=(0.0, 0.0, 0.0),
+              ):
+        """ Add a single Electron to the simulation.
+
+        Args:
+            r: 3D position vector in meters
+            v: 3D velocity vector in m / s
+        """
+        self.world.append(Electron(self, r, v))
+
+    def add_e_a(self,
+                r: Tuple[float, float, float],
+                v=(0.0, 0.0, 0.0),
+                ):
+        """ Add a single Electron to the simulation in ANGSTROM units.
+
+        Args:
+            r: 3D position vector in Angstroms
+            v: 3D velocity vector in m / s
+        """
+        self.world.append(Electron(self, np.array(r) * ANGSTROM, v))
+
+    def add_p_a(self,
+                r: Tuple[float, float, float],
+                v=(0.0, 0.0, 0.0),
+                n=1.0):
+        """ Add a single Proton to the simulation in ANGSTROM units.
+
+        Args:
+            r: 3D position vector in Angstroms
+            v: 3D velocity vector in m / s
+            n: Proton has n times the normal charge and mass
+        """
+        self.world.append(Proton(self, np.array(r) * ANGSTROM, v, n))
+
+    def init_world(self):
+        self.center_mass()
+        self.zero_momentum()
+        self.init_forces()
+
+        self.total_ke = self.total_kinetic_energy()
+        self.total_pe = self.total_potential_energy()
+
+        self.last_ke = self.total_ke
+        self.last_pe = self.total_pe
+
     def center_mass(self):
         """ Move world center of mass to center of screen. """
         center_m = self.center_of_mass()
 
         # Center of screen (0,0,0 is upper left front corner)
         center = (
-            (self.screen_width / self.pixels_per_angstrom * Angstrom) / 2.0,
-            (self.screen_height / self.pixels_per_angstrom * Angstrom) / 2.0,
-            (self.screen_depth / self.pixels_per_angstrom * Angstrom) / 2.0)
+            (self.screen_width / self.pixels_per_angstrom * ANGSTROM) / 2.0,
+            (self.screen_height / self.pixels_per_angstrom * ANGSTROM) / 2.0,
+            (self.screen_depth / self.pixels_per_angstrom * ANGSTROM) / 2.0)
 
         dr = center-center_m    # Distance vector to move everything
 
@@ -703,17 +775,6 @@ class Simulation:
 
     def center_of_mass(self) -> ndarray:
         """ return center of mass of the world as pos vector. """
-        # cx = cy = cz = 0.0
-        # tm = 0.0
-        # for p in world:
-        #     cx += p.cur_state_r0 * p.mass
-        #     cy += p.cur_state_r1 * p.mass
-        #     cz += p.cur_state_r2 * p.mass
-        #     tm += p.mass
-        # x = cx / tm
-        # y = cy / tm
-        # z = cz / tm
-        # return x, y, z
         c = np.zeros(3)
         total_mass = 0.0
         for p in self.world:
@@ -818,6 +879,8 @@ class Simulation:
 
     def run(self):
         """ Run the simulation. """
+        self.init_world()
+
         self.run_me = True
         loop_cnt = 0
         last_time = time.time()
@@ -947,7 +1010,7 @@ class Simulation:
         if self.stop_at > 0.0:
             print(f"    Stop at {self.stop_at * 1000_000_000:.20f} ns")
 
-        print("doMagnetic:", doMagnetic)
+        print("do_v_force:", self.do_v_force)
         print()
 
         re = ((self.total_ke - self.starting_total_ke) + (
@@ -1012,7 +1075,7 @@ class Simulation:
                 v = (d - last_d) / (
                         self.now - last_time)  # positive v if moving away
                 print("Distance between", end=' ')
-                print(f"P{i:02d} P{j:02d} {d / Angstrom:11.6f} A", end='')
+                print(f"P{i:02d} P{j:02d} {d / ANGSTROM:11.6f} A", end='')
                 print(f"   v:{v:+.2e}")
                 cnt += 1
                 if cnt > 10:
@@ -1038,7 +1101,7 @@ class Simulation:
             vc = magnitude(pv) / CONST_C
             self.max_vc = max(self.max_vc, vc)
             print(f" {vc:0.5f}c", end='')
-            print(" x:%6.2f A" % (p.cur_state.r[0] / Angstrom), end=' ')
+            print(" x:%6.2f A" % (p.cur_state.r[0] / ANGSTROM), end=' ')
             # print " KE:%10.2e" % p1.avgKE
             # if total_avg_ke:
             #     print(" KE:%6.2f%%" % (p1.avgKE * 100 / total_avg_ke))
@@ -1273,10 +1336,10 @@ class Simulation:
 
     def space_to_pixels(self, space):
         # 0,0 is the same in both and is the top left corner of the screen
-        return int(self.pixels_per_angstrom * space / Angstrom)
+        return int(self.pixels_per_angstrom * space / ANGSTROM)
 
     def pixels_to_space(self, pixels):
-        return pixels * Angstrom / self.pixels_per_angstrom
+        return pixels * ANGSTROM / self.pixels_per_angstrom
 
 
 def unit_test():
