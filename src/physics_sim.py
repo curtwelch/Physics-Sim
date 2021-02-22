@@ -840,17 +840,17 @@ class Simulation:
             now = time.time()
             loop_time = now - last_time
             fps = 1 / loop_time
-            self.fps_avg += (fps - self.fps_avg) * .01
+            self.fps_avg += (fps - self.fps_avg) * .001
             last_time = now
 
-            if loop_cnt % 5 == 0:
+            if loop_cnt % 10 == 0:
                 self.bounce_particles()
                 self.draw_world()
 
             self.total_ke = self.total_kinetic_energy()
             self.total_pe = self.total_potential_energy()
 
-            if loop_cnt % 20 == 0:
+            if loop_cnt % 30 == 0:
                 self.print_stats()
 
                 if 0.0 < self.stop_at < self.now:
