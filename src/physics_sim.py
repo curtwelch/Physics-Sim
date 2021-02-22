@@ -118,20 +118,22 @@ class ParticleState:
         """ Zero force vector. """
         self.f[:] = 0.0
 
-    def add_force(self, p_state: 'ParticleState'):
+    def total_force(self, p_state: 'ParticleState'):
         """ Add force on self created by p_state. """
 
         if self.p is p_state.p:
             # Particles cause no force on self
-            return
+            return np.zeros(3)
 
         # Add Electrostatic force
         # TODO might need to be R limited? was before
-        self.f += self.es_force(p_state)
+        f: ndarray = self.es_force(p_state)
 
         # Add electro-drag force
         if doMagnetic:
-            self.f += self.v_force(p_state)
+            f += self.v_force(p_state)
+
+        return f
 
     # def add_force(self, p: 'Particle', p_state: ParticleState):  # and set end force as well
     #     if p is self:
@@ -168,7 +170,7 @@ class ParticleState:
     #     # self.end_fz = self.fz
     #     self.end_state.f = np.copy(self.cur_state.f)
 
-    def es_force(self, p_state: 'ParticleState'):
+    def es_force(self, p_state: 'ParticleState') -> ndarray:
         """ Electrostatic force on self by p_state per Coulomb's law. """
         # Force on self, caused by p.
         # real force, not R limit limited force
@@ -755,10 +757,23 @@ class Simulation:
 
     def compute_end_forces(self):
         """ Update end_state forces using end_state position and velocity. """
-        for p1 in self.world:
-            p1.end_state.zero_force()
-            for p2 in self.world:
-                p1.end_state.add_force(p2.end_state)
+        # for p1 in self.world:
+        #     p1.end_state.zero_force()
+        #     for p2 in self.world:
+        #         p1.end_state.f += p1.end_state.total_force(p2.end_state)
+        #         # p1.end_state.add_force(p2.end_state)
+        #     # Add constant static force (experimental hack)
+
+        for p in self.world:
+            p.end_state.zero_force()
+
+        for i1 in range(len(self.world)):
+            p1 = self.world[i1]
+            for i2 in range(i1+1, len(self.world)):
+                p2 = self.world[i2]
+                f = p1.end_state.total_force(p2.end_state)
+                p1.end_state.f += f
+                p2.end_state.f -= f
             # Add constant static force (experimental hack)
             p1.end_state.f += p1.static_f
 
