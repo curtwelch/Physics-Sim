@@ -27,10 +27,10 @@ BLACK = 0, 0, 0         # Color of an electron
 WHITE = 255, 255, 255   # Screen Background color
 RED = 255, 0, 0         # Color of a Proton
 
-ANGSTROM = 1.0e-10          # One ANGSTROM is 1e-10 meters
+ANGSTROM = 1.0e-10          # m/Å - One ANGSTROM is 1e-10 meters
 CONST_C = 299792458.0       # Speed of light m/s - defined constant
-# CONST_KE = 8.9875517873681764e9  # Coulomb's constant (1/4 pi e)  K(sub)e
-# CONST_KE = self.c * self.c * 1.0e-7  # OLD?
+# CONST_KE = 8.9875517873681764e9   # Coulomb's constant (1/4 πe)  K(sub)e
+# CONST_KE = CONST_C² * 1.0e-7      # Same as above -- old now?
 CONST_KE = 8.9875517923e9   # Coulomb's constant; New? 8.9875517923(14)×10^9
 
 CONST_P_CHARGE = +1.60218e-19
@@ -593,6 +593,12 @@ class Electron(Particle):
     def __init__(self, sim: 'Simulation',
                  r: Tuple[float, float, float],
                  v=(0.0, 0.0, 0.0)):
+        """ A Single Electron in the simulation.
+
+        Args:
+            r: 3D location vector (x,y,z) in meters.
+            v: 3D velocity vector in m/s
+        """
         super().__init__(sim, r, v)
         self.charge = CONST_E_CHARGE
         self.mass = CONST_E_MASS
@@ -600,8 +606,7 @@ class Electron(Particle):
 
 
 class Proton(Particle):
-    """ A Single Proton.
-    """
+    """ A Single Proton. """
     def __init__(self, sim: 'Simulation',
                  r: Tuple[float, float, float],
                  v=(0.0, 0.0, 0.0),
@@ -697,6 +702,22 @@ class Simulation:
         self.clock = pygame.time.Clock()
         pygame.display.set_caption(self.title)
 
+    def add_e(self,
+              r: Tuple[float, float, float],
+              v=(0.0, 0.0, 0.0),
+              ):
+        """ Add a single Electron to the simulation.
+
+        Args:
+            r: 3D position vector in meters
+            v: 3D velocity vector in m / s
+        Returns:
+            Electron -  the electron added
+        """
+        e = Electron(self, r, v)
+        self.world.append(e)
+        return e
+
     def add_p(self,
               r: Tuple[float, float, float],
               v=(0.0, 0.0, 0.0),
@@ -707,20 +728,12 @@ class Simulation:
             r: 3D position vector in meters
             v: 3D velocity vector in m / s
             n: Proton has n times the normal charge and mass
+        Returns:
+            Proton: the Proton added
         """
-        self.world.append(Proton(self, r, v, n))
-
-    def add_e(self,
-              r: Tuple[float, float, float],
-              v=(0.0, 0.0, 0.0),
-              ):
-        """ Add a single Electron to the simulation.
-
-        Args:
-            r: 3D position vector in meters
-            v: 3D velocity vector in m / s
-        """
-        self.world.append(Electron(self, r, v))
+        p = Proton(self, r, v, n)
+        self.world.append(p)
+        return p
 
     def add_e_a(self,
                 r: Tuple[float, float, float],
@@ -731,8 +744,11 @@ class Simulation:
         Args:
             r: 3D position vector in Angstroms
             v: 3D velocity vector in m / s
+        Returns:
+            Electron: The electron added
         """
-        self.world.append(Electron(self, np.array(r) * ANGSTROM, v))
+        e = self.add_e(np.array(r) * ANGSTROM, v)
+        return e
 
     def add_p_a(self,
                 r: Tuple[float, float, float],
@@ -744,8 +760,62 @@ class Simulation:
             r: 3D position vector in Angstroms
             v: 3D velocity vector in m / s
             n: Proton has n times the normal charge and mass
+        Returns:
+            Proton: The Proton added
         """
-        self.world.append(Proton(self, np.array(r) * ANGSTROM, v, n))
+        p = self.add_p(np.array(r) * ANGSTROM, v, n)
+        return p
+
+    def add_ep_a(self, center: Tuple[float, float, float],
+                 radius: float = None, velocity: float = None):
+        """ Add an orbiting e/p pair to the Simulation.  A Hydrogen Atom.
+
+        The location of the center of the mass of the orbiting pair is
+        specified as 'center'. The Orbit can be specified as the radius of the electron
+        orbit about the center of mass or by the velocity of the electron.
+        If no radius is defined, .5Å is used making the atom have a diameter
+        of 1Å which is in the rough ballpark of a real Hydrogen atom.
+
+        The electron is placed to the right (+x) of the proton creating an orbit
+        on the x-y plane.
+
+        Args:
+            center: The 3D location of the center of mass of the pair.
+            radius: radius of electron orbit in Angstroms.
+            velocity: velocity of electron in m/s
+        Returns:
+            Tuple[Electron, Proton]: The ep pair created
+        """
+        cm_r = np.array(center)     # Center of mass as numpy vector.
+        rad = radius
+        v = velocity
+        if rad is None and v is None:
+            rad = 0.2           # Angstroms - Default
+        if rad is not None:
+            rad *= ANGSTROM     # Convert Angstrom to meters
+            # Calculate v
+            v = 0.01 * CONST_C      # TODO fix formula
+        elif v is not None:
+            # Calculate rad
+            rad = .1 * ANGSTROM     # TODO fix formula
+
+        # print("rad is", rad, "v is", v)
+
+        p_r = cm_r - np.array((rad * CONST_E_MASS/CONST_P_MASS, 0.0, 0.0))
+        p_v = np.array((0.0, -v * CONST_E_MASS/CONST_P_MASS, 0.0))
+        p = self.add_p(p_r, v=p_v)
+
+        e_r = cm_r + np.array((rad, 0.0, 0.0))
+        e_v = np.array((0.0, v, 0.0))
+        e = self.add_e(e_r, v=e_v)
+
+        # # self.init_world()
+        #
+        # print("Proton is:\n", p.cur_state)
+        # print("Electron is:\n", e.cur_state)
+        # # exit()
+
+        return e, p
 
     def init_world(self):
         self.center_mass()

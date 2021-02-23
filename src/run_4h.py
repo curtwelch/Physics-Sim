@@ -9,9 +9,10 @@ import physics_sim as ps
 
 
 def main():
+    """ Simple test of 4 Hydrogen-like Atoms. """
     sim = ps.Simulation(title="4H Test", dt_max=2e-20)
 
-    v = .012 * ps.CONST_C
+    v = .012 * ps.CONST_C   # C is the speed of light.
 
     sim.add_p_a((0.2, 0.0, 0.0))
     sim.add_e_a((0.2, -0.1, 0.0), v=(v, 0.0, 0.0))
