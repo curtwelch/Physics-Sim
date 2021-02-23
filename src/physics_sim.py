@@ -786,20 +786,38 @@ class Simulation:
         Returns:
             Tuple[Electron, Proton]: The ep pair created
         """
-        cm_r = np.array(center)     # Center of mass as numpy vector.
+        # j = (1+me/mp)
+        # d = rj
+        # c force = kq²/r²j²
+        # When these two are equal, we have a circular orbit.
+        # kq²/r²j² = mv²/r
+        # solving for r:
+        # kq²/j² = mv²r
+        # r = kq²/mv²j²
+        # solving for v:
+        # v² = kq²/mrj²
+        # v = sqrt(kq²/mrj²)
+        cm_r = np.array(center) * ANGSTROM     # Center of mass
         rad = radius
         v = velocity
+        j = 1 + CONST_E_MASS/CONST_P_MASS
         if rad is None and v is None:
             rad = 0.2           # Angstroms - Default
         if rad is not None:
             rad *= ANGSTROM     # Convert Angstrom to meters
             # Calculate v
-            v = 0.01 * CONST_C      # TODO fix formula
+            # v = sqrt(kq²/mrj²)
+            v = math.sqrt(CONST_KE * CONST_P_CHARGE ** 2 /
+                          (CONST_E_MASS * rad * (j**2)))
         elif v is not None:
             # Calculate rad
-            rad = .1 * ANGSTROM     # TODO fix formula
+            # r = kq²/mv²j²
+            rad = CONST_KE * (CONST_P_CHARGE ** 2) / \
+                  (CONST_E_MASS * (v**2) * (j**2))
 
+        # print()
         # print("rad is", rad, "v is", v)
+        # print("rad is", rad/ANGSTROM, "Å")
 
         p_r = cm_r - np.array((rad * CONST_E_MASS/CONST_P_MASS, 0.0, 0.0))
         p_v = np.array((0.0, -v * CONST_E_MASS/CONST_P_MASS, 0.0))
@@ -808,6 +826,20 @@ class Simulation:
         e_r = cm_r + np.array((rad, 0.0, 0.0))
         e_v = np.array((0.0, v, 0.0))
         e = self.add_e(e_r, v=e_v)
+
+        # esf = e.es_force(p)
+        # print("esf is", esf)
+        # mesf = magnitude(esf)
+        # print("m(esf) is", mesf)
+        # mv = magnitude(e.cur_state.v)
+        # print("m(v) for e is", mv)
+        # cf = CONST_E_MASS * (v ** 2) / rad
+        # print("cent force is", cf)
+        # mdr = magnitude(p.cur_state.r - e.cur_state.r)
+        # print("mag(dr) (should be >rad)", mdr)
+        # print("should equal rj which is", rad*j)
+        # cf = CONST_KE * CONST_P_CHARGE ** 2 / (rad ** 2 * j ** 2)
+        # print("es force from rad", cf)
 
         # # self.init_world()
         #
