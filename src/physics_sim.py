@@ -17,7 +17,7 @@ import time
 import math
 import numpy as np
 from numpy import ndarray
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Callable
 # import timeit
 import pygame
 
@@ -119,7 +119,7 @@ class ParticleState:
         self.f[:] = 0.0
 
     def total_force(self, p_state: 'ParticleState'):
-        """ Add force on self created by p_state. """
+        """ Add force on self created by p2_state. """
 
         if self.p is p_state.p:
             # Particles cause no force on self
@@ -135,14 +135,14 @@ class ParticleState:
 
         return f
 
-    # def add_force(self, p: 'Particle', p_state: ParticleState):  # and set end force as well
+    # def add_force(self, p: 'Particle', p2_state: ParticleState):  # and set end force as well
     #     if p is self:
     #         return
     #
     #     # dx = (self.cur_state_r0 - p.cur_state_r0)
     #     # dy = (self.cur_state_r1 - p.cur_state_r1)
     #     # dz = (self.cur_state_r2 - p.cur_state_r2)
-    #     dr = p_state.r - p_state.r
+    #     dr = p2_state.r - p2_state.r
     #
     #     r2, l2 = self.distance2(p)
     #
@@ -171,7 +171,7 @@ class ParticleState:
     #     self.end_state.f = np.copy(self.cur_state.f)
 
     def es_force(self, p_state: 'ParticleState') -> ndarray:
-        """ Electrostatic force on self by p_state per Coulomb's law. """
+        """ Electrostatic force on self by p2_state per Coulomb's law. """
         # Force on self, caused by p.
         # real force, not R limit limited force
         # Returns 0,0,0 instead of infinity for two particles located
@@ -192,17 +192,17 @@ class ParticleState:
 
         return dr_unit * CONST_KE * self.p.charge * p_state.p.charge / (r * r)
 
-    # def v_force_test(self, p_state: 'ParticleState'):
-    #     n = timeit.timeit('nv = self.v_force_new(p_state)', '', number=100, globals=locals())
-    #     o = timeit.timeit('ov = self.v_force_old(p_state)', '', number=100, globals=locals())
-    #     nv = self.v_force_new(p_state)
+    # def v_force_test(self, p2_state: 'ParticleState'):
+    #     n = timeit.timeit('nv = self.v_force_new(p2_state)', '', number=100, globals=locals())
+    #     o = timeit.timeit('ov = self.v_force_old(p2_state)', '', number=100, globals=locals())
+    #     nv = self.v_force_new(p2_state)
     #     if n < o:
     #         # print(end='.')
     #         print(f"New Faster - New: {n:.3f} Old: {o:.3f}")
     #     else:
     #         print()
     #         print(f"Old Faster - New: {n:.3f} Old: {o:.3f}")
-    #         ov = self.v_force_old(p_state)
+    #         ov = self.v_force_old(p2_state)
     #         print("  nv:", nv)
     #         print("  ov:", ov)
     #
@@ -214,7 +214,7 @@ class ParticleState:
             Runs about 2x faster most the time.
             Slightly different results at the lowest bits.
         """
-        # return self.v_force_old(p_state)
+        # return self.v_force_old(p2_state)
         dv: ndarray = self.v - p_state.v
         dr: ndarray = self.r - p_state.r
         r = np.linalg.norm(dr)
@@ -258,7 +258,7 @@ class ParticleState:
         return f_vec
 
     def distance_sq(self, p_state: 'ParticleState'):
-        """ Distance**2 between self and p_state.
+        """ Distance**2 between self and p2_state.
             :returns: distance**2, limited_distance**2
         """
 
@@ -640,6 +640,8 @@ class Simulation:
                  dt_adjust=True,
                  stop_at=0.0,
                  do_v_force=True,
+                 total_force: Callable[[ParticleState, ParticleState],
+                                       ndarray] = None,
                  ):
         """
         3D Simulation of Protons and Electrons.
@@ -656,6 +658,7 @@ class Simulation:
             stop_at: seconds - simulation stops when it goes past this.
                      0.0 means run forever.
             do_v_force: boolean - include v_force calculations
+            total_force: A function to calculate force between to particles
         """
         self.title = title      # Screen Title
         self.screen_width = screen_width
@@ -665,8 +668,9 @@ class Simulation:
         self.dt_min = dt_min
         self.dt_max = dt_max
         self.dt_adjust = dt_adjust
-        self.stop_at = stop_at  # Simulations time to stop
+        self.stop_at = stop_at      # Simulations time to stop
         self.do_v_force = do_v_force
+        self.total_force = total_force
 
         self.world: list[Particle] = []
 
@@ -805,12 +809,15 @@ class Simulation:
             rad = 0.2           # Angstroms - Default
         if rad is not None:
             rad *= ANGSTROM     # Convert Angstrom to meters
-            # Calculate v
+
+        if v is None and rad is not None:
+            # Calculate v from rad
             # v = sqrt(kq²/mrj²)
             v = math.sqrt(CONST_KE * CONST_P_CHARGE ** 2 /
                           (CONST_E_MASS * rad * (j**2)))
-        elif v is not None:
-            # Calculate rad
+
+        if rad is None and v is not None:
+            # Calculate rad from v
             # r = kq²/mv²j²
             rad = CONST_KE * (CONST_P_CHARGE ** 2) / \
                   (CONST_E_MASS * (v**2) * (j**2))
@@ -826,26 +833,6 @@ class Simulation:
         e_r = cm_r + np.array((rad, 0.0, 0.0))
         e_v = np.array((0.0, v, 0.0))
         e = self.add_e(e_r, v=e_v)
-
-        # esf = e.es_force(p)
-        # print("esf is", esf)
-        # mesf = magnitude(esf)
-        # print("m(esf) is", mesf)
-        # mv = magnitude(e.cur_state.v)
-        # print("m(v) for e is", mv)
-        # cf = CONST_E_MASS * (v ** 2) / rad
-        # print("cent force is", cf)
-        # mdr = magnitude(p.cur_state.r - e.cur_state.r)
-        # print("mag(dr) (should be >rad)", mdr)
-        # print("should equal rj which is", rad*j)
-        # cf = CONST_KE * CONST_P_CHARGE ** 2 / (rad ** 2 * j ** 2)
-        # print("es force from rad", cf)
-
-        # # self.init_world()
-        #
-        # print("Proton is:\n", p.cur_state)
-        # print("Electron is:\n", e.cur_state)
-        # # exit()
 
         return e, p
 
@@ -920,12 +907,6 @@ class Simulation:
 
     def compute_end_forces(self):
         """ Update end_state forces using end_state position and velocity. """
-        # for p1 in self.world:
-        #     p1.end_state.zero_force()
-        #     for p2 in self.world:
-        #         p1.end_state.f += p1.end_state.total_force(p2.end_state)
-        #         # p1.end_state.add_force(p2.end_state)
-        #     # Add constant static force (experimental hack)
 
         for p in self.world:
             p.end_state.zero_force()
@@ -934,7 +915,10 @@ class Simulation:
             p1 = self.world[i1]
             for i2 in range(i1+1, len(self.world)):
                 p2 = self.world[i2]
-                f = p1.end_state.total_force(p2.end_state)
+                if self.total_force is not None:
+                    f = self.total_force(p1.end_state, p2.end_state)
+                else:
+                    f = p1.end_state.total_force(p2.end_state)
                 p1.end_state.f += f
                 p2.end_state.f -= f
             # Add constant static force (experimental hack)
@@ -1222,7 +1206,10 @@ class Simulation:
             # Frequency of electron in orbit.
             if isinstance(p, Electron) or isinstance(p, Proton):
                 f = p.cur_state.f_from_v()
-                print(f" f:{f / 1_000_000_000_000_000:.1e} PHz", end='')
+                if f / 1e15 > 1000.0:
+                    print(f" f:{f / 1e18:.1e} EHz", end='')
+                else:
+                    print(f" f:{f / 1e15:.1e} PHz", end='')
                 print(f"  wl:{CONST_C * 1e9 / f:.3e} nm",
                       end='')  # wave length
 
