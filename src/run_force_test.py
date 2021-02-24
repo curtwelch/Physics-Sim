@@ -14,15 +14,14 @@ from numpy import ndarray
 
 def main():
     """ Simple test of add_ep_a(). """
-    sim = ps.Simulation(title="New V Force Test", total_force=new_v_force, dt_max=1e-20)
+    sim = ps.Simulation(title="New V Force Test", total_force=new_v_force, dt_max=1e-19)
 
     sim.add_ep_a((0.0, 0.0, 0.0), radius=0.1)
-
     sim.add_ep_a((0.5, 0.0, 0.0))
-
     sim.add_ep_a((0.5, 0.5, 0.5))
-
     sim.add_ep_a((0.0, 0.5, 0.2), radius=0.05)
+    sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
+    sim.add_ep_a((1.0, 0.5, 0.2), radius=0.05)
 
     sim.run()
 
