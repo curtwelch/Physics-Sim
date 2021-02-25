@@ -621,7 +621,7 @@ class Proton(Particle):
         super().__init__(sim, r, v)
         self.charge = n * CONST_P_CHARGE  # in Coulombs
         self.mass = n * CONST_P_MASS
-        self.symbol = 'p'
+        self.symbol = 'P'
 
 
 class Simulation:
@@ -1085,12 +1085,13 @@ class Simulation:
 
         a_width = self.screen_width / self.pixels_per_angstrom
         a_height = self.screen_height / self.pixels_per_angstrom
+        a_depth = self.screen_depth / self.pixels_per_angstrom
         print(f"PixelsPerAngstrom", self.pixels_per_angstrom, end='')
-        print(f"  Screen ({a_width}A x {a_height:.1f}A)", end='')
+        print(f"  World ({a_width}A x {a_height:.1f}A x {a_depth:.1f}A)", end='')
         print(" ", self.title)
 
-        print(f"Time now is {self.now * 1000_000_000:.20f} ns", end='')
-        print("  DT is: %4.1e" % self.dt, end='')
+        print(f"Sim Time:{self.now * 1000_000_000:.20f} ns", end='')
+        print("  DT:%4.1e" % self.dt, end='')
         print(f"  FPS:{self.fps_avg:.1f}")
 
         if self.stop_at > 0.0:
@@ -1136,7 +1137,7 @@ class Simulation:
 
         self.print_particle_stats()
 
-        print(f"                  Max Velocity: {self.max_vc:7.5f}c")
+        print(f"                   Max Velocity: {self.max_vc:7.5f}c")
 
     def print_proton_distance(self):
         """
@@ -1181,7 +1182,7 @@ class Simulation:
 
         for i in range(len(self.world)):
             p = self.world[i]
-            print(f"{p.symbol}{i}", end='')
+            print(f"{p.symbol}{i:02}", end='')
             pv = p.cur_state.v
             print(f" vx:{pv[0]:10.2e}  vy:{pv[1]:10.2e}", end='')
             vc = magnitude(pv) / CONST_C

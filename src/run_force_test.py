@@ -14,7 +14,7 @@ from numpy import ndarray
 
 def main():
     """ Simple test of add_ep_a(). """
-    sim = ps.Simulation(title="New V Force Test", total_force=new_v_force, dt_max=1e-19)
+    sim = ps.Simulation(title="New V Force Test", total_force=combined_es_v_force, dt_max=1e-19)
 
     sim.add_ep_a((0.0, 0.0, 0.0), radius=0.1)
     sim.add_ep_a((0.5, 0.0, 0.0))
@@ -39,6 +39,30 @@ def total_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState):
 
 
 def new_v_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
+    """
+        This version of Velocity force acts to reduce ES force
+        when particles move towards each otherm and increase
+        as they move away.
+    """
+    dv: ndarray = p1_state.v - p2_state.v
+    dr: ndarray = p1_state.r - p2_state.r
+    r = np.linalg.norm(dr)
+    dr_hat = dr / r
+    # f_vec = (dr_hat * dv.dot(dr_hat) * ps.CONST_KE *
+    #          p1_state.p.charge *
+    #          p2_state.p.charge / (r * r * ps.CONST_C))
+
+    # es force is:
+    # return dr_unit * CONST_KE * self.p.charge * p_state.p.charge / (r * r)
+    es_vec = dr_hat * ps.CONST_KE * p1_state.p.charge * p2_state.p.charge / (r*r)
+    new_f = es_vec * dv.dot(dr_hat) / ps.CONST_C
+    # print("old combined is:", all_force)
+    # print("new          is:", new_f)
+
+    return new_f
+
+
+def combined_es_v_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
     r = np.linalg.norm(dr)
