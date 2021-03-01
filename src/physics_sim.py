@@ -32,6 +32,8 @@ CONST_C = 299792458.0       # Speed of light m/s - defined constant
 # CONST_KE = 8.9875517873681764e9   # Coulomb's constant (1/4 πe)  K(sub)e
 # CONST_KE = CONST_C² * 1.0e-7      # Same as above -- old now?
 CONST_KE = 8.9875517923e9   # Coulomb's constant; New? 8.9875517923(14)×10^9
+# CONST_G = 6.67408e-11  # Gravitational Constant, 2014 CODATA
+CONST_G = 6.67430e-11  # Gravitational Constant, 2018 CODATA 6.67430(15)×10−11
 
 CONST_P_CHARGE = +1.60218e-19
 CONST_P_MASS = 1.672621898e-27
@@ -351,9 +353,8 @@ class Particle:
 
     def gravity_force(self, p: 'Particle'):
         # Magnitude of gravity between self and other particle
-        g = 6.67408e-11  # 2014 CODATA recommended value
         r2, l2 = self.distance_squared(p)
-        f = g * self.mass * p.mass / r2
+        f = CONST_G * self.mass * p.mass / r2
         return f
 
     def magnetic_field(self, p: 'Particle'):
@@ -684,7 +685,7 @@ class Simulation:
         self.p_bounce_count = 0
 
         self.p_pair_last_distance: Dict[
-            Tuple[float, float], Tuple[float, float]] = {}
+            Tuple[float, float], Tuple[float, float, float]] = {}
 
         self.total_ke = 0.0
         self.total_pe = 0.0
@@ -1051,10 +1052,20 @@ class Simulation:
     def draw_world(self):
         """ Draw all the particles on the screen. """
         self.screen.fill(WHITE)
-        # Sort world by z dimension so we draw far to near
-        s_list = sorted(self.world, key=lambda arg: arg.cur_state.r[2])
-        for p in s_list:
-            self.draw_particle(p)
+
+        # Sort world by z dimension so we draw far to near.
+        # When z is equal, draw Proton first, so the larger
+        # Protons don't cover up the smaller electrons.
+
+        def sort_key(p: Particle):
+            z = p.cur_state.r[2]
+            sort_order = 1
+            if isinstance(p, Proton):
+                sort_order = 0
+            return z, sort_order
+        s_list = sorted(self.world, key=sort_key)
+        for p2 in s_list:
+            self.draw_particle(p2)
         pygame.display.flip()
         return
 
@@ -1087,7 +1098,7 @@ class Simulation:
         a_height = self.screen_height / self.pixels_per_angstrom
         a_depth = self.screen_depth / self.pixels_per_angstrom
         print(f"PixelsPerAngstrom", self.pixels_per_angstrom, end='')
-        print(f"  World ({a_width}A x {a_height:.1f}A x {a_depth:.1f}A)", end='')
+        print(f"  World ({a_width}A x {a_height:}A x {a_depth:}A)", end='')
         print(" ", self.title)
 
         print(f"Sim Time:{self.now * 1000_000_000:.20f} ns", end='')
@@ -1155,15 +1166,18 @@ class Simulation:
                     continue
                 d = p1.distance(p2)[0]
                 pair = (i, j)
-                last_d, last_time = self.p_pair_last_distance.get(pair, (
-                    d, self.now - self.dt))
-                self.p_pair_last_distance[pair] = (
-                    d, self.now)  # save for next time
+                last_d, last_time, avg_v = self.p_pair_last_distance.get(pair, (
+                    d, self.now - self.dt, 0.0))
                 v = (d - last_d) / (
                         self.now - last_time)  # positive v if moving away
+                avg_v += (v - avg_v) * .01
+                self.p_pair_last_distance[pair] = (
+                    d, self.now, avg_v)  # save for next time
                 print("Distance between", end=' ')
                 print(f"P{i:02d} P{j:02d} {d / ANGSTROM:11.6f} A", end='')
-                print(f"   v:{v:+.2e}")
+                print(f"   v:{v:+.2e}", end='')
+                print(f"   v:{avg_v:+.2e} m/s", end='')
+                print()
                 cnt += 1
                 if cnt > 10:
                     break
