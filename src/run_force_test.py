@@ -13,15 +13,37 @@ from numpy import ndarray
 
 
 def main():
+    test_2pe()
+
+
+def test_6h():
     """ Simple test of add_ep_a(). """
     sim = ps.Simulation(title="New V Force Test", total_force=combined_es_v_force, dt_max=1e-19)
 
-    sim.add_ep_a((0.0, 0.0, 0.0), radius=0.1)
-    sim.add_ep_a((0.5, 0.0, 0.0))
-    sim.add_ep_a((0.5, 0.5, 0.5))
-    sim.add_ep_a((0.0, 0.5, 0.2), radius=0.05)
-    sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
-    sim.add_ep_a((1.0, 0.5, 0.2), radius=0.05)
+    sim.add_p_a((0.3, 0.0, 0.0))
+    # sim.add_ep_a((0.5, 0.0, 0.0))
+    # sim.add_ep_a((0.5, 0.5, 0.5))
+    # sim.add_ep_a((0.0, 0.5, 0.2), radius=0.05)
+    # sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
+    # sim.add_ep_a((1.0, 0.5, 0.2), radius=0.05)
+
+    sim.run()
+
+
+def test_2pe():
+    """ Simple test of 2P and one E. """
+    sim = ps.Simulation(title="2PE Test with new v_force",
+                        pixels_per_angstrom=10000,
+                        total_force=combined_es_v_force,
+                        dt_max=5e-23)
+
+    e: ps.Electron
+    e, p = sim.add_ep_a((0.0, 0.0, 0.0), radius=0.001)
+    # Swap y and z velocity to change orbit direction
+    # e.cur_state.r[0], e.cur_state.r[2] = e.cur_state.r[2], e.cur_state.r[0]
+    e.charge *= 1.1
+
+    sim.add_p_a((0.01, 0.0, 0.0001))
 
     sim.run()
 
@@ -41,7 +63,7 @@ def total_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState):
 def new_v_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     """
         This version of Velocity force acts to reduce ES force
-        when particles move towards each otherm and increase
+        when particles move towards each other and increase
         as they move away.
     """
     dv: ndarray = p1_state.v - p2_state.v
