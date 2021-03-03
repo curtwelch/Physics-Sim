@@ -581,8 +581,7 @@ class Particle:
         if d >= RLimit:
             return CONST_KE * self.charge * p.charge / d
 
-        # self.inside_r_limit_count += 1
-        # TODO this won't work -- figure out what to do
+        self.sim.inside_r_limit_count += 1
 
         x = CONST_KE * self.charge * p.charge / RLimit
 
@@ -623,6 +622,25 @@ class Proton(Particle):
         self.charge = n * CONST_P_CHARGE  # in Coulombs
         self.mass = n * CONST_P_MASS
         self.symbol = 'P'
+
+
+class Neutron(Particle):
+    """ A Single Fake Neutron. """
+    def __init__(self, sim: 'Simulation',
+                 r: Tuple[float, float, float],
+                 v=(0.0, 0.0, 0.0),
+                 n=1.0):
+        """ A single Neutron
+
+        Args:
+            r: 3D position vector in meters
+            v: 3D velocity vector in m / s
+            n: Neutron has n times the normal charge and mass
+        """
+        super().__init__(sim, r, v)
+        self.charge = n * CONST_P_CHARGE  # in Coulombs
+        self.mass = n * CONST_P_MASS
+        self.symbol = 'N'
 
 
 class Simulation:
@@ -740,6 +758,23 @@ class Simulation:
         self.world.append(p)
         return p
 
+    def add_n(self,
+              r: Tuple[float, float, float],
+              v=(0.0, 0.0, 0.0),
+              n=1.0):
+        """ Add a single Proton to the simulation.
+
+        Args:
+            r: 3D position vector in meters
+            v: 3D velocity vector in m / s
+            n: Proton has n times the normal charge and mass
+        Returns:
+            Neutron: the Proton added
+        """
+        n = Neutron(self, r, v, n)
+        self.world.append(n)
+        return n
+
     def add_e_a(self,
                 r: Tuple[float, float, float],
                 v=(0.0, 0.0, 0.0),
@@ -770,6 +805,22 @@ class Simulation:
         """
         p = self.add_p(np.array(r) * ANGSTROM, v, n)
         return p
+
+    def add_n_a(self,
+                r: Tuple[float, float, float],
+                v=(0.0, 0.0, 0.0),
+                n=1.0):
+        """ Add a single Neutron to the simulation in ANGSTROM units.
+
+        Args:
+            r: 3D position vector in Angstroms
+            v: 3D velocity vector in m / s
+            n: Neutron has n times the normal charge and mass
+        Returns:
+            Neutron: The Neutron added
+        """
+        n = self.add_p(np.array(r) * ANGSTROM, v, n)
+        return n
 
     def add_ep_a(self, center: Tuple[float, float, float],
                  radius: float = None, velocity: float = None):
