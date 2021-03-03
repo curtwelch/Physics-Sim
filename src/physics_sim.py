@@ -23,9 +23,10 @@ import pygame
 
 import crt
 
-BLACK = 0, 0, 0         # Color of an electron
+BLACK = 0, 0, 0         # Color of an Electron
 WHITE = 255, 255, 255   # Screen Background color
 RED = 255, 0, 0         # Color of a Proton
+BLUE = 0, 0, 255        # Color of a Neutron
 
 ANGSTROM = 1.0e-10          # m/Å - One ANGSTROM is 1e-10 meters
 CONST_C = 299792458.0       # Speed of light m/s - defined constant
@@ -126,6 +127,18 @@ class ParticleState:
         if self.p is p_state.p:
             # Particles cause no force on self
             return np.zeros(3)
+
+        if isinstance(self.p, Neutron):
+            # these fake Neutrons only have forces with Protons
+            # Not with each other, or not with Electrons.
+            if not isinstance(p_state.p, Proton):
+                return np.zeros(3)
+
+        if isinstance(p_state.p, Neutron):
+            # these fake Neutrons only have forces with Protons
+            # Not with each other, or not with Electrons.
+            if not isinstance(self.p, Proton):
+                return np.zeros(3)
 
         # Add Electrostatic force
         # TODO might need to be R limited? was before
@@ -625,20 +638,28 @@ class Proton(Particle):
 
 
 class Neutron(Particle):
-    """ A Single Fake Neutron. """
+    """ A Single Fake Neutron.
+        Mass of a Proton.  Charge of an Electron.
+        Only interacts with Protons.
+        Testing the idea of how this will "glue" together
+        protons to form an atomic nucleus.
+    """
     def __init__(self, sim: 'Simulation',
                  r: Tuple[float, float, float],
                  v=(0.0, 0.0, 0.0),
-                 n=1.0):
+                 n=1.0,
+                 nc=1.0,
+                 ):
         """ A single Neutron
 
         Args:
             r: 3D position vector in meters
             v: 3D velocity vector in m / s
             n: Neutron has n times the normal charge and mass
+            nc: n times the normal charge
         """
         super().__init__(sim, r, v)
-        self.charge = n * CONST_P_CHARGE  # in Coulombs
+        self.charge = nc * n * CONST_E_CHARGE  # in Coulombs
         self.mass = n * CONST_P_MASS
         self.symbol = 'N'
 
@@ -761,17 +782,19 @@ class Simulation:
     def add_n(self,
               r: Tuple[float, float, float],
               v=(0.0, 0.0, 0.0),
-              n=1.0):
+              n=1.0,
+              nc=1.0):
         """ Add a single Proton to the simulation.
 
         Args:
             r: 3D position vector in meters
             v: 3D velocity vector in m / s
             n: Proton has n times the normal charge and mass
+            nc: n times the normal charge
         Returns:
             Neutron: the Proton added
         """
-        n = Neutron(self, r, v, n)
+        n = Neutron(self, r, v=v, n=n, nc=nc)
         self.world.append(n)
         return n
 
@@ -809,17 +832,19 @@ class Simulation:
     def add_n_a(self,
                 r: Tuple[float, float, float],
                 v=(0.0, 0.0, 0.0),
-                n=1.0):
+                n=1.0,
+                nc=1.0):
         """ Add a single Neutron to the simulation in ANGSTROM units.
 
         Args:
             r: 3D position vector in Angstroms
             v: 3D velocity vector in m / s
             n: Neutron has n times the normal charge and mass
+            nc: n times the normal charge
         Returns:
             Neutron: The Neutron added
         """
-        n = self.add_p(np.array(r) * ANGSTROM, v, n)
+        n = self.add_n(np.array(r) * ANGSTROM, v=v, n=n, nc=nc)
         return n
 
     def add_ep_a(self, center: Tuple[float, float, float],
@@ -895,6 +920,9 @@ class Simulation:
 
         self.total_ke = self.total_kinetic_energy()
         self.total_pe = self.total_potential_energy()
+
+        self.starting_total_ke = self.total_ke
+        self.starting_total_pe = self.total_pe
 
         self.last_ke = self.total_ke
         self.last_pe = self.total_pe
@@ -1110,9 +1138,9 @@ class Simulation:
 
         def sort_key(p: Particle):
             z = p.cur_state.r[2]
-            sort_order = 1
-            if isinstance(p, Proton):
-                sort_order = 0
+            sort_order = 0
+            if isinstance(p, Electron):
+                sort_order = 1
             return z, sort_order
         s_list = sorted(self.world, key=sort_key)
         for p2 in s_list:
@@ -1129,8 +1157,11 @@ class Simulation:
         if isinstance(p, Electron):
             color = BLACK
             size = 2
-        else:
+        elif isinstance(p, Proton):
             color = RED
+            size = 4
+        else:   # A Neutron
+            color = BLUE
             size = 4
 
         min_scale = 1.0
