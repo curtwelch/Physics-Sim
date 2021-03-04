@@ -272,21 +272,85 @@ class ParticleState:
         # F = self.product(-v_mag / p.c, es_f) # reduces es_force per abs(speed)
         return f_vec
 
+    def kinetic_energy(self) -> float:
+        """ 1/2 mv² """
+        return 0.5 * self.p.mass * self.v.dot(self.v)
+
+    def set_kinetic_energy(self, ke: float):
+        """
+            Update magnitude of velocity to match using given ke
+            Keep direction of vector the same.
+        """
+        new_v2 = ke / (0.5 * self.p.mass)
+        # old_v2 = (self.vx ** 2.0 + self.vy ** 2.0 + self.vz ** 2.0)
+        # old_v2 = np.sum(self.v() ** 2)
+        old_v2 = np.sum(self.v ** 2)
+        # print "in set kinetic new_v2 is", new_v2
+        # print "in set kinetic old_v2 is", old_v2
+        new_v = math.sqrt(new_v2)
+        old_v = math.sqrt(old_v2)
+        # # self.vx *= new_v2 / old_v2
+        # # self.vy *= new_v2 / old_v2
+        # # self.vz *= new_v2 / old_v2
+        # self.vx *= new_v / old_v
+        # self.vy *= new_v / old_v
+        # self.vz *= new_v / old_v
+        self.v *= new_v / old_v
+
+    def potential_energy(self, p_state: 'ParticleState'):
+        # potential energy between self and state p_state
+
+        if p_state is self:
+            return 0.0  # No potential energy with self
+
+        if isinstance(self.p, Neutron):
+            # these fake Neutrons only have forces with Protons
+            # Not with each other, or not with Electrons.
+            if not isinstance(p_state.p, Proton):
+                return 0.0
+
+        if isinstance(p_state.p, Neutron):
+            # these fake Neutrons only have forces with Protons
+            # Not with each other, or not with Electrons.
+            if not isinstance(self.p, Proton):
+                return 0.0
+
+        r, r_limited = self.distance(p_state)
+
+        return self.potential_energy_for_distance(p_state, r)
+
+    def potential_energy_for_distance(self, p_state: 'ParticleState', d):
+        """ Calculate PE dealing with constant force inside RLimit. """
+
+        if d >= RLimit:
+            return CONST_KE * self.p.charge * p_state.p.charge / d
+
+        self.p.sim.inside_r_limit_count += 1
+
+        x = CONST_KE * self.p.charge * p_state.p.charge / RLimit
+
+        return x + (x / RLimit) * (RLimit - d)
+
+    def distance(self, p_state: 'ParticleState'):
+        r, r_limited = self.distance_sq(p_state)
+        return math.sqrt(r), math.sqrt(r_limited)
+
     def distance_sq(self, p_state: 'ParticleState'):
         """ Distance**2 between self and p2_state.
             :returns: distance**2, limited_distance**2
         """
 
-        d_sqr = np.sum((self.r - p_state.r) ** 2)
+        dr = self.r - p_state.r
+        d_sqr = dr.dot(dr)
 
-        return self.limited_distance_sqr(d_sqr)
-
-    @staticmethod
-    def limited_distance_sqr(d_sqr: float):
-        """ Limit distance to RLimit to solve computational problems.
-            return (real, limited) tuple
-        """
         return d_sqr, max(d_sqr, RLimit ** 2)
+
+    # @staticmethod
+    # def limited_distance_sqr(d_sqr: float):
+    #     """ Limit distance to RLimit to solve computational problems.
+    #         return (real, limited) tuple
+    #     """
+    #     return d_sqr, max(d_sqr, RLimit ** 2)
 
 
 class Particle:
@@ -322,118 +386,108 @@ class Particle:
         self.mass = 0.0     # Defined in subclass for e and p
         self.symbol = 'e'   # Defined in subclass for e and p
 
-    # def r(self):
-    #     """ Current 3D Position Vector. """
-    #     return self.cur_state.r
+    # def add_static_force(self):
+    #     """ Add static forces to beginning and ending forces. """
+    #     self.cur_state.f += self.static_f
+    #     self.end_state.f += self.static_f
 
-    def add_static_force(self):
-        """ Add static forces to beginning and ending forces. """
-        # self.fx += self.static_fx
-        # self.fy += self.static_fy
-        # self.fz += self.static_fz
-        # self.end_fx += self.static_fx
-        # self.end_fy += self.static_fy
-        # self.end_fz += self.static_fz
-        self.cur_state.f += self.static_f
-        self.end_state.f += self.static_f
+    # def es_force(self, p: 'Particle'):
+    #     # Electrostatic force between self and p per coulomb's law.
+    #     # Force on self, caused by p.
+    #     # real force, not R limit limited force
+    #     # Returns 0,0,0 instead of infinity for two particles located
+    #     # on same spot.
+    #
+    #     if p is self:
+    #         return np.zeros(3)
+    #
+    #     # dx = (self.cur_state_r0 - p.cur_state_r0)
+    #     # dy = (self.cur_state_r1 - p.cur_state_r1)
+    #     # dz = (self.cur_state_r2 - p.cur_state_r2)
+    #     dr: ndarray = self.cur_state.r - p.cur_state.r
+    #
+    #     r2, l2 = self.distance_squared(p)
+    #
+    #     if r2 == 0.0:
+    #         return np.zeros(3)  # Bogus but prevents DBZ -- should be infinity
+    #
+    #     force = CONST_KE * self.charge * p.charge / r2
+    #
+    #     r = math.sqrt(r2)
+    #
+    #     # return force * dx / r, force * dy / r, force * dz / r
+    #     return dr * (force / r)
 
-    def es_force(self, p: 'Particle'):
-        # Electrostatic force between self and p per coulomb's law.
-        # Force on self, caused by p.
-        # real force, not R limit limited force
-        # Returns 0,0,0 instead of infinity for two particles located
-        # on same spot.
+    # def gravity_force(self, p: 'Particle'):
+    #     # Magnitude of gravity between self and other particle
+    #     r2, l2 = self.distance_squared(p)
+    #     f = CONST_G * self.mass * p.mass / r2
+    #     return f
 
-        if p is self:
-            return np.zeros(3)
+    # def magnetic_field(self, p: 'Particle'):
+    #     """
+    #         Returns a 3D field vector B = (x,y,z)
+    #         Calculate the magnetic field created at self, by p.
+    #         B = (1e-7 q1 v1 x r_hat) / r^2
+    #         r_hat is the unit vector pointing from p to self
+    #     """
+    #
+    #     r2, l2 = self.distance_squared(p)
+    #
+    #     if r2 == 0.0:
+    #         return np.zeros(3)
+    #
+    #     # print " distance is", r2, math.sqrt(r2)
+    #
+    #     # r_hat = (self.cur_state_r0 - p.cur_state_r0, self.cur_state_r1 - p.cur_state_r1, self.cur_state_r2 - p.cur_state_r2)
+    #     # r_hat = product(1.0 / math.sqrt(r2), r_hat)
+    #     r_hat = (self.cur_state.r - p.cur_state.r) / math.sqrt(r2)
+    #
+    #     # The books say based on current flow, this should be correct:
+    #     # This follows the right hand rule for positive current flow
+    #     # b_vec = product(1e-7 * p.charge / r2, cross(p.v(), r_hat))
+    #     b_vec: ndarray = np.cross(p.cur_state.v, r_hat) * (
+    #             1e-7 * p.charge / r2)
+    #
+    #     # This is inverted
+    #     # b_vec = product(-1.0, b_vec)  # backwards
+    #     b_vec = b_vec * -1.0
+    #     # 2021 -- I have no clue if I added this inversion per the note
+    #     # below or if this inversion is what is needed per the books?
+    #
+    #     # The correct way, means that motion causes electrons to push HARDER
+    #     # apart from each other, and ep pairs to pull harder together.  So when
+    #     # the velocity == c, the magnetic force equals the electrostatic force.
+    #     # If they add, as the books imply they do, it means that going the
+    #     # speed of light means the force doubles.  But that is fucking
+    #     # pointless. It doesn't make the speed of light special in any sense
+    #     # related to orbital mechanics as far as I can deduce. To make it
+    #     # special, the speed of light has to be the point where these forces
+    #     # cancel each other out!  Which makes me logically deduce that This
+    #     # sign has to be backwards to work correctly. So I'm going to play with
+    #     # making it backwards from how the books all say it should be to see
+    #     # what happens.
+    #
+    #     return b_vec
 
-        # dx = (self.cur_state_r0 - p.cur_state_r0)
-        # dy = (self.cur_state_r1 - p.cur_state_r1)
-        # dz = (self.cur_state_r2 - p.cur_state_r2)
-        dr: ndarray = self.cur_state.r - p.cur_state.r
-
-        r2, l2 = self.distance_squared(p)
-
-        if r2 == 0.0:
-            return np.zeros(3)  # Bogus but prevents DBZ -- should be infinity
-
-        force = CONST_KE * self.charge * p.charge / r2
-
-        r = math.sqrt(r2)
-
-        # return force * dx / r, force * dy / r, force * dz / r
-        return dr * (force / r)
-
-    def gravity_force(self, p: 'Particle'):
-        # Magnitude of gravity between self and other particle
-        r2, l2 = self.distance_squared(p)
-        f = CONST_G * self.mass * p.mass / r2
-        return f
-
-    def magnetic_field(self, p: 'Particle'):
-        """
-            Returns a 3D field vector B = (x,y,z)
-            Calculate the magnetic field created at self, by p.
-            B = (1e-7 q1 v1 x r_hat) / r^2
-            r_hat is the unit vector pointing from p to self
-        """
-
-        r2, l2 = self.distance_squared(p)
-
-        if r2 == 0.0:
-            return np.zeros(3)
-
-        # print " distance is", r2, math.sqrt(r2)
-
-        # r_hat = (self.cur_state_r0 - p.cur_state_r0, self.cur_state_r1 - p.cur_state_r1, self.cur_state_r2 - p.cur_state_r2)
-        # r_hat = product(1.0 / math.sqrt(r2), r_hat)
-        r_hat = (self.cur_state.r - p.cur_state.r) / math.sqrt(r2)
-
-        # The books say based on current flow, this should be correct:
-        # This follows the right hand rule for positive current flow
-        # b_vec = product(1e-7 * p.charge / r2, cross(p.v(), r_hat))
-        b_vec: ndarray = np.cross(p.cur_state.v, r_hat) * (
-                1e-7 * p.charge / r2)
-
-        # This is inverted
-        # b_vec = product(-1.0, b_vec)  # backwards
-        b_vec = b_vec * -1.0
-        # 2021 -- I have no clue if I added this inversion per the note
-        # below or if this inversion is what is needed per the books?
-
-        # The correct way, means that motion causes electrons to push HARDER
-        # apart from each other, and ep pairs to pull harder together.  So when
-        # the velocity == c, the magnetic force equals the electrostatic force.
-        # If they add, as the books imply they do, it means that going the
-        # speed of light means the force doubles.  But that is fucking
-        # pointless. It doesn't make the speed of light special in any sense
-        # related to orbital mechanics as far as I can deduce. To make it
-        # special, the speed of light has to be the point where these forces
-        # cancel each other out!  Which makes me logically deduce that This
-        # sign has to be backwards to work correctly. So I'm going to play with
-        # making it backwards from how the books all say it should be to see
-        # what happens.
-
-        return b_vec
-
-    def magnetic_force(self, p: 'Particle'):
-        # Returns a 3D force vector (x,y,z)
-        # Calculate the force created on self, by the magnetic
-        # field generated by p.
-        # B = (1e-7 q1 v1 x rHat) / r^2
-        # F = q2 V2 x B
-        # F = q2 V2 X (1e-7 q1 v1 x rHat) / r^2
-        # rHat is the unit vector pointing from p to self
-
-        b_vec = self.magnetic_field(p)
-
-        # print "mag force"
-        # print " B is", B
-
-        # f_vec = product(self.charge, cross(self.v(), b_vec))
-        f_vec: ndarray = self.charge * np.cross(self.cur_state.v, b_vec)
-
-        return f_vec
+    # def magnetic_force(self, p: 'Particle'):
+    #     # Returns a 3D force vector (x,y,z)
+    #     # Calculate the force created on self, by the magnetic
+    #     # field generated by p.
+    #     # B = (1e-7 q1 v1 x rHat) / r^2
+    #     # F = q2 V2 x B
+    #     # F = q2 V2 X (1e-7 q1 v1 x rHat) / r^2
+    #     # rHat is the unit vector pointing from p to self
+    #
+    #     b_vec = self.magnetic_field(p)
+    #
+    #     # print "mag force"
+    #     # print " B is", B
+    #
+    #     # f_vec = product(self.charge, cross(self.v(), b_vec))
+    #     f_vec: ndarray = self.charge * np.cross(self.cur_state.v, b_vec)
+    #
+    #     return f_vec
 
     def calculate_end_velocity(self, dt):
         """
@@ -483,122 +537,114 @@ class Particle:
         # Reset force end to match force begin
         # Everything else will be recomputed again.
 
-        # self.end_fx = self.fx
-        # self.end_fy = self.fy
-        # self.end_fz = self.fz
-
         self.end_state.f[:] = self.cur_state.f
 
-    def kinetic_energy(self):
-        """ Kinetic energy of cur_state. """
-        return self.kinetic_energy_calc(self.cur_state.v)
+    # def kinetic_energy(self):
+    #     """ Kinetic energy of cur_state. """
+    #     return self.cur_state.kinetic_energy()
 
-    def kinetic_end_energy(self):
-        """ Kinetic energy of end_state """
-        return self.kinetic_energy_calc(self.end_state.v)
+    # def kinetic_end_energy(self):
+    #     """ Kinetic energy of end_state """
+    #     return self.end_state.kinetic_energy()
 
-    def kinetic_energy_calc(self, v: ndarray) -> float:
-        """ 1/2 mv² """
-        return 0.5 * self.mass * v.dot(v)
+    # def set_kinetic_energy(self, ke: float):
+    #     """
+    #         Update magnitude of velocity to match using given ke
+    #         Keep direction of vector the same.
+    #     """
+    #     new_v2 = ke / (0.5 * self.mass)
+    #     # old_v2 = (self.vx ** 2.0 + self.vy ** 2.0 + self.vz ** 2.0)
+    #     # old_v2 = np.sum(self.v() ** 2)
+    #     old_v2 = np.sum(self.cur_state.v ** 2)
+    #     # print "in set kinetic new_v2 is", new_v2
+    #     # print "in set kinetic old_v2 is", old_v2
+    #     new_v = math.sqrt(new_v2)
+    #     old_v = math.sqrt(old_v2)
+    #     # # self.vx *= new_v2 / old_v2
+    #     # # self.vy *= new_v2 / old_v2
+    #     # # self.vz *= new_v2 / old_v2
+    #     # self.vx *= new_v / old_v
+    #     # self.vy *= new_v / old_v
+    #     # self.vz *= new_v / old_v
+    #     self.cur_state.v *= new_v / old_v
 
-    def set_kinetic_energy(self, ke: float):
-        """
-            Update magnitude of velocity to match using given ke
-            Keep direction of vector the same.
-        """
-        new_v2 = ke / (0.5 * self.mass)
-        # old_v2 = (self.vx ** 2.0 + self.vy ** 2.0 + self.vz ** 2.0)
-        # old_v2 = np.sum(self.v() ** 2)
-        old_v2 = np.sum(self.cur_state.v ** 2)
-        # print "in set kinetic new_v2 is", new_v2
-        # print "in set kinetic old_v2 is", old_v2
-        new_v = math.sqrt(new_v2)
-        old_v = math.sqrt(old_v2)
-        # # self.vx *= new_v2 / old_v2
-        # # self.vy *= new_v2 / old_v2
-        # # self.vz *= new_v2 / old_v2
-        # self.vx *= new_v / old_v
-        # self.vy *= new_v / old_v
-        # self.vz *= new_v / old_v
-        self.cur_state.v *= new_v / old_v
+    # def distance_squared(self, p: 'Particle'):
+    #     """ Distance**2 between self and p.
+    #         :returns: distance**2, limited_distance**2
+    #     """
+    #
+    #     if p is self:
+    #         return self.limited_distance2(0.0)
+    #
+    #     d_squared: float = np.sum((self.cur_state.r - p.cur_state.r) ** 2)
+    #
+    #     return self.limited_distance2(d_squared)
 
-    def distance_squared(self, p: 'Particle'):
-        """ Distance**2 between self and p.
-            :returns: distance**2, limited_distance**2
-        """
+    # def end_distance_squared(self, p: 'Particle'):  # distance squared
+    #     """ Distance**2 between self and p end states.
+    #         :returns: distance**2, limited_distance**2
+    #     """
+    #     if p is self:
+    #         return self.limited_distance2(0.0)
+    #
+    #     # dx = (self.end_x - p.end_x)
+    #     # dy = (self.end_y - p.end_y)
+    #     # dz = (self.end_z - p.end_z)
+    #
+    #     # d2 = dx ** 2.0 + dy ** 2.0 + dz ** 2.0
+    #
+    #     d_squared: float = np.sum((self.end_state.r - p.end_state.r) ** 2)
+    #
+    #     return self.limited_distance2(d_squared)
 
-        if p is self:
-            return self.limited_distance2(0.0)
+    # @staticmethod
+    # def limited_distance2(d2: float):
+    #     """ Limit distance to RLimit to solve computational problems.
+    #         return (real, limited) tuple
+    #     """
+    #     return d2, max(d2, RLimit ** 2)
 
-        d_squared: float = np.sum((self.cur_state.r - p.cur_state.r) ** 2)
+    # def distance(self, p):
+    #     r, r_limited = self.distance_squared(p)
+    #     return math.sqrt(r), math.sqrt(r_limited)
 
-        return self.limited_distance2(d_squared)
+    # def end_distance(self, p):
+    #     r, r_limited = self.end_distance_squared(p)
+    #     return math.sqrt(r), math.sqrt(r_limited)
 
-    def end_distance_squared(self, p: 'Particle'):  # distance squared
-        """ Distance**2 between self and p end states.
-            :returns: distance**2, limited_distance**2
-        """
-        if p is self:
-            return self.limited_distance2(0.0)
+    # def potential_energy(self, p):
+    #     # potential energy between self and particle P
+    #
+    #     if p is self:
+    #         return 0.0  # No potential energy for self
+    #
+    #     r, r_limited = self.distance(p)
+    #
+    #     return self.potential_energy_for_distance(p, r)
 
-        # dx = (self.end_x - p.end_x)
-        # dy = (self.end_y - p.end_y)
-        # dz = (self.end_z - p.end_z)
+    # def potential_end_energy(self, p):
+    #     # potential energy between self and particle P
+    #
+    #     if p is self:
+    #         return 0.0  # Bogus should be +infinity
+    #
+    #     r, r_limited = self.end_distance(p)
+    #
+    #     return self.potential_energy_for_distance(p, r)
 
-        # d2 = dx ** 2.0 + dy ** 2.0 + dz ** 2.0
-
-        d_squared: float = np.sum((self.end_state.r - p.end_state.r) ** 2)
-
-        return self.limited_distance2(d_squared)
-
-    @staticmethod
-    def limited_distance2(d2: float):
-        """ Limit distance to RLimit to solve computational problems.
-            return (real, limited) tuple
-        """
-        return d2, max(d2, RLimit ** 2)
-
-    def distance(self, p):
-        r, r_limited = self.distance_squared(p)
-        return math.sqrt(r), math.sqrt(r_limited)
-
-    def end_distance(self, p):
-        r, r_limited = self.end_distance_squared(p)
-        return math.sqrt(r), math.sqrt(r_limited)
-
-    def potential_energy(self, p):
-        # potential energy between self and particle P
-
-        if p is self:
-            return 0.0  # No potential energy for self
-
-        r, r_limited = self.distance(p)
-
-        return self.potential_energy_for_distance(p, r)
-
-    def potential_end_energy(self, p):
-        # potential energy between self and particle P
-
-        if p is self:
-            return 0.0  # Bogus should be +infinity
-
-        r, r_limited = self.end_distance(p)
-
-        return self.potential_energy_for_distance(p, r)
-
-    def potential_energy_for_distance(self, p, d):
-
-        # if d == 0:
-        # return 0.0	# Bogus should be +infinity
-
-        if d >= RLimit:
-            return CONST_KE * self.charge * p.charge / d
-
-        self.sim.inside_r_limit_count += 1
-
-        x = CONST_KE * self.charge * p.charge / RLimit
-
-        return x + (x / RLimit) * (RLimit - d)
+    # def potential_energy_for_distance(self, p, d):
+    #
+    #     # if d == 0:
+    #     # return 0.0	# Bogus should be +infinity
+    #
+    #     if d >= RLimit:
+    #         return CONST_KE * self.charge * p.charge / d
+    #
+    #     self.sim.inside_r_limit_count += 1
+    #
+    #     x = CONST_KE * self.charge * p.charge / RLimit
+    #
+    #     return x + (x / RLimit) * (RLimit - d)
 
 
 class Electron(Particle):
@@ -1012,7 +1058,7 @@ class Simulation:
         total_ke = 0.0
 
         for p in self.world:
-            total_ke += p.kinetic_energy()
+            total_ke += p.cur_state.kinetic_energy()
 
         return total_ke
 
@@ -1021,7 +1067,8 @@ class Simulation:
 
         for i in range(len(self.world)):
             for j in range(i + 1, len(self.world)):
-                total_pe += self.world[i].potential_energy(self.world[j])
+                total_pe += self.world[i].cur_state.potential_energy(
+                    self.world[j].cur_state)
 
         return total_pe
 
@@ -1029,7 +1076,7 @@ class Simulation:
         total_ke = 0.0
 
         for p in self.world:
-            total_ke += p.kinetic_end_energy()
+            total_ke += p.end_state.kinetic_energy()
 
         return total_ke
 
@@ -1038,7 +1085,8 @@ class Simulation:
 
         for i in range(len(self.world)):
             for j in range(i + 1, len(self.world)):
-                total_pe += self.world[i].potential_end_energy(self.world[j])
+                total_pe += self.world[i].end_state.potential_energy(
+                    self.world[j].end_state)
 
         return total_pe
 
@@ -1121,13 +1169,13 @@ class Simulation:
                 for p in self.world:
                     # print
                     # print "Adjust KE for particle", i, "energy_diff_start error is", energy_diff_start
-                    ke = p.kinetic_energy()
+                    ke = p.cur_state.kinetic_energy()
                     # print "Current ke is", ke
                     # print "percent of of total is", ke/total_ke2*100.0, "%"
                     # print "amount added of total energy_diff_start is", ke/total_ke2*energy_diff_start
                     new_ke = ke - ke / total_ke2 * energy_diff_start
                     # print "new should be", new_ke
-                    p.set_kinetic_energy(new_ke)
+                    p.cur_state.set_kinetic_energy(new_ke)
                     # print "new KE is now", p1.kinetic_energy()
 
         pygame.quit()
@@ -1258,7 +1306,7 @@ class Simulation:
                 p2 = self.world[j]
                 if not isinstance(p2, Proton):
                     continue
-                d = p1.distance(p2)[0]
+                d = p1.cur_state.distance(p2.cur_state)[0]
                 pair = (i, j)
                 last_time: int
                 last_d, last_time, avg_v = self.p_pair_last_distance.get(pair, (
@@ -1289,7 +1337,7 @@ class Simulation:
         total_momentum_mag = 0.0
 
         for p in self.world:
-            ke = p.kinetic_energy()
+            ke = p.cur_state.kinetic_energy()
             p.avgKE += (ke - p.avgKE) * 0.0001
             total_avg_ke += p.avgKE
             total_momentum_mag += magnitude(p.cur_state.momentum())
@@ -1310,7 +1358,7 @@ class Simulation:
             #     print(" KE:?????")
             if self.total_ke:
                 print(" KE:%5.1f%%" % (
-                        p.kinetic_energy() * 100 / self.total_ke), end='')
+                        p.cur_state.kinetic_energy() * 100 / self.total_ke), end='')
             else:
                 print(" KE:?", end='')
             momentum = magnitude(p.cur_state.momentum())
@@ -1471,6 +1519,10 @@ class Simulation:
             Process bounce as needed.
             return True if there was a bounce.
         """
+        if isinstance(p, Neutron):
+            # Don't bounce Neutrons for now
+            return False
+
         x = self.space_to_pixels(p.cur_state.r[0])
         y = self.space_to_pixels(p.cur_state.r[1])
         z = self.space_to_pixels(p.cur_state.r[2])
@@ -1526,9 +1578,11 @@ class Simulation:
             p.cur_state.v[2] = vz
 
             if ke_change_factor != 1.0:
-                # Adjust KE of the particle if we are using ke_change_factor to
+                # Adjust KE of the particle if we are using
+                # ke_change_factor to
                 # reduce KE on bounce (slow particle down)
-                p.set_kinetic_energy(p.kinetic_energy() * ke_change_factor)
+                p.cur_state.set_kinetic_energy(
+                    p.cur_state.kinetic_energy() * ke_change_factor)
 
             # Update statistics about bounces.
             if isinstance(p, Proton):
