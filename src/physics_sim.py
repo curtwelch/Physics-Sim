@@ -792,7 +792,7 @@ class Simulation:
             n: Proton has n times the normal charge and mass
             nc: n times the normal charge
         Returns:
-            Neutron: the Proton added
+            Neutron: the Neutron added
         """
         n = Neutron(self, r, v=v, n=n, nc=nc)
         self.world.append(n)
@@ -1139,8 +1139,10 @@ class Simulation:
         def sort_key(p: Particle):
             z = p.cur_state.r[2]
             sort_order = 0
-            if isinstance(p, Electron):
+            if isinstance(p, Proton):
                 sort_order = 1
+            elif isinstance(p, Electron):
+                sort_order = 2
             return z, sort_order
         s_list = sorted(self.world, key=sort_key)
         for p2 in s_list:
@@ -1162,7 +1164,7 @@ class Simulation:
             size = 4
         else:   # A Neutron
             color = BLUE
-            size = 4
+            size = 5
 
         min_scale = 1.0
         max_scale = 3.0
@@ -1250,8 +1252,16 @@ class Simulation:
                 pair = (i, j)
                 last_d, last_time, avg_v = self.p_pair_last_distance.get(pair, (
                     d, self.now - self.dt, 0.0))
-                v = (d - last_d) / (
-                        self.now - last_time)  # positive v if moving away
+                dt = self.now - last_time
+                if dt == 0.0:
+                    # Prevent divide by zero. This happened.
+                    # I think it was because running at a large dt of 1e-20
+                    # then changing to an 1e-30 loses 10 digits of accuracy.
+                    # And if we have been running for more than 5 digits of
+                    # time at 1e-20 then when we switch to 1e30 we can't
+                    # measure the dt using the now value.
+                    dt = self.dt
+                v = (d - last_d) / dt   # positive v if moving away
                 avg_v += (v - avg_v) * .01
                 self.p_pair_last_distance[pair] = (
                     d, self.now, avg_v)  # save for next time
