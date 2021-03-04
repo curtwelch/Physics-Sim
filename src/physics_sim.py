@@ -678,7 +678,7 @@ class Simulation:
                  dt_min=1e-30,
                  dt_max=1.0,
                  dt_adjust=True,
-                 stop_at=0.0,
+                 stop_at=0,
                  do_v_force=True,
                  total_force: Callable[[ParticleState, ParticleState],
                                        ndarray] = None,
@@ -695,8 +695,8 @@ class Simulation:
             dt_min: seconds - Smallest Time Step of simulation
             dt_max: seconds - Largest Time Stop of seconds
             dt_adjust: boolean - Adjust time step automatically
-            stop_at: seconds - simulation stops when it goes past this.
-                     0.0 means run forever.
+            stop_at: int - simulation stops when it goes past this.
+                     0 means run forever. in units of dt_min steps.
             do_v_force: boolean - include v_force calculations
             total_force: A function to calculate force between to particles
         """
@@ -705,10 +705,10 @@ class Simulation:
         self.screen_height = screen_height
         self.screen_depth = screen_depth
         self.pixels_per_angstrom = pixels_per_angstrom
-        self.dt_min = dt_min
+        self.dt_min = dt_min            # defines units of self.now
         self.dt_max = dt_max
         self.dt_adjust = dt_adjust
-        self.stop_at = stop_at      # Simulations time to stop
+        self.stop_at: int = stop_at     # Simulations time to stop
         self.do_v_force = do_v_force
         self.total_force = total_force
 
@@ -718,7 +718,11 @@ class Simulation:
         self.fps_avg = 1.0      # Computed average speed of simulation
         self.run_me = True
         self.cycle_count = 0
-        self.now = 0.0          # Simulation time in seconds
+
+        # now is an unlimited precision int because floats
+        # don't have enough precision.
+        self.now: int = 0          # Simulation steps in dt_min units
+
         self.inside_r_limit_count = 0
         self.e_bounce_count = 0
         self.p_bounce_count = 0
@@ -1100,7 +1104,7 @@ class Simulation:
             for p in self.world:
                 p.move()
 
-            self.now += self.dt
+            self.now += round(self.dt/self.dt_min)
 
             if Energy_fix:  # not compatible with v_force() - breaks PE
                 # Fix total energy error
@@ -1185,7 +1189,13 @@ class Simulation:
         print(f"  World ({a_width}A x {a_height:}A x {a_depth:}A)", end='')
         print(" ", self.title)
 
-        print(f"Sim Time:{self.now * 1000_000_000:.20f} ns", end='')
+        now_ns = self.now * self.dt_min * 1_000_000_000
+        # This only shows 15 digits of precision because it's a float
+        # but self.now is an unlimited precision int.  The value will
+        # be correct to 15 digits but will look like it's not counting
+        # up when it is when it gets too large relative to dt.
+        # More complex display here could fix that.
+        print(f"Sim Time:{now_ns:.20f} ns", end='')
         print("  DT:%4.1e" % self.dt, end='')
         print(f"  FPS:{self.fps_avg:.1f}")
 
@@ -1250,19 +1260,17 @@ class Simulation:
                     continue
                 d = p1.distance(p2)[0]
                 pair = (i, j)
+                last_time: int
                 last_d, last_time, avg_v = self.p_pair_last_distance.get(pair, (
-                    d, self.now - self.dt, 0.0))
-                dt = self.now - last_time
-                if dt == 0.0:
-                    # Prevent divide by zero. This happened.
-                    # I think it was because running at a large dt of 1e-20
-                    # then changing to an 1e-30 loses 10 digits of accuracy.
-                    # And if we have been running for more than 5 digits of
-                    # time at 1e-20 then when we switch to 1e30 we can't
-                    # measure the dt using the now value.
-                    dt = self.dt
-                v = (d - last_d) / dt   # positive v if moving away
-                avg_v += (v - avg_v) * .01
+                    d, 0, 0.0))
+                # Convert from dt_min time steps to seconds
+                dt_seconds = (self.now - last_time) * self.dt_min
+                if dt_seconds:
+                    # Prevent divide by zero. Shouldn't happen anymore?
+                    v = (d - last_d) / dt_seconds   # positive v if moving away
+                    avg_v += (v - avg_v) * .01
+                else:
+                    v = 0.0
                 self.p_pair_last_distance[pair] = (
                     d, self.now, avg_v)  # save for next time
                 print("Distance between", end=' ')
@@ -1453,7 +1461,7 @@ class Simulation:
 
             self.starting_total_ke = self.total_ke
             self.starting_total_pe = self.total_pe
-            # TODO wait, do I need to fix end_state and forces???
+            # TODO wait, do I need to fix end_state and forces?
 
         return
 
