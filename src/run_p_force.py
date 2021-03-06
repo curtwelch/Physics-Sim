@@ -42,13 +42,17 @@ def main():
 
 def do_1h():
     """ Simple test of p force with a single EP pair. """
-    sim = ps.Simulation(title="P Forcex-1 1H Test", total_force=total_force, dt_max=1e-19)
+    sim = ps.Simulation(title="P Force 1H Test",
+                        total_force=total_force,
+                        dt_max=1e-20)
 
     # sim.add_p_a((0.3, 0.0, 0.0))
     # sim.add_ep_a((0.5, 0.0, 0.0))
     # sim.add_ep_a((0.5, 0.5, 0.5))
-    e, p = sim.add_ep_a((0.0, 0.5, 0.2), radius=0.1)
-    e.cur_state.v[1] *= 1.3
+    e, p = sim.add_ep_a((0.0, 0.0, 0.0), radius=0.1)
+    # e.cur_state.v[1] *= 1.3
+    sim.add_p_a((0.2, 0.0, 0.0))
+
     # sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
     # sim.add_ep_a((1.0, 0.5, 0.2), radius=0.05)
 
@@ -80,7 +84,7 @@ def total_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState):
     f: ndarray = p1_state.es_force(p2_state)
 
     # New p force
-    f += p_force(p1_state, p2_state) * -1.0
+    f += p_force(p1_state, p2_state)
     # f = combined_es_p_force(p1_state, p2_state)
 
     return f
@@ -100,21 +104,21 @@ def p_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
 
     """
     dv: ndarray = p1_state.v - p2_state.v
-    dr: ndarray = p1_state.r - p2_state.r
-    r = np.linalg.norm(dr)
-    dr_hat = dr / r
-    f_vec = (dr_hat * dv.dot(dr_hat) * ps.CONST_KE *
-             p1_state.p.charge *
-             p2_state.p.charge / (r * r * ps.CONST_C))
-
-    # The below is rotating the force vector 90 deg in the
-    # dv dr plane.  Probably a better way to do this.
-    dv_cross_dr = np.cross(dv, dr)
-    len_dv_cross_dr = np.linalg.norm(dv_cross_dr)
-    if len_dv_cross_dr == 0.0:
-        return np.zeros(3)  # blows up, just punt and return zero
-    dv_cross_dr_hat = dv_cross_dr / len_dv_cross_dr
-    answer = np.cross(f_vec, dv_cross_dr_hat)
+    # dr: ndarray = p1_state.r - p2_state.r
+    # r = np.linalg.norm(dr)
+    # dr_hat = dr / r
+    # f_vec = (dr_hat * dv.dot(dr_hat) * ps.CONST_KE *
+    #          p1_state.p.charge *
+    #          p2_state.p.charge / (r * r * ps.CONST_C))
+    #
+    # # The below is rotating the force vector 90 deg in the
+    # # dv dr plane.  Probably a better way to do this.
+    # dv_cross_dr = np.cross(dv, dr)
+    # len_dv_cross_dr = np.linalg.norm(dv_cross_dr)
+    # if len_dv_cross_dr == 0.0:
+    #     return np.zeros(3)  # blows up, just punt and return zero
+    # dv_cross_dr_hat = dv_cross_dr / len_dv_cross_dr
+    # answer = np.cross(f_vec, dv_cross_dr_hat)
     # print()
     # print("dr       ", dr, "r", r)
     # print("dr hat   ", dr_hat)
@@ -122,8 +126,22 @@ def p_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     # print("f_vec    ", f_vec)
     # print("vxr had  ", dv_cross_dr_hat)
     # print("answer   ", answer)
+    # print("answer dot f_vec should be zero", answer.dot(f_vec))
+    # print("answer dot dr    should be zero", answer.dot(dr))
+    # print("dv dot dr_hat", dv.dot(dr_hat))
 
-    return answer
+    # # This proved conservation of energy wasn't working when
+    # # I kept the force orthogonal to dr.
+    # if dv.dot(dr_hat) < 0:
+    #     return np.zeros(3)
+
+    es: ndarray = p1_state.es_force(p2_state)
+    m = np.cross(es, dv) * 0.0000004
+    # M is a made up new force that is orthogonal to both dv
+    # and es.  Testing if this messes up conservation of energy.
+    # print("m is", m)
+
+    return m
 
 
 def combined_es_p_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
