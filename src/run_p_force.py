@@ -42,16 +42,17 @@ def main():
 
 def do_1h():
     """ Simple test of p force with a single EP pair. """
-    sim = ps.Simulation(title="P Force 1H Test",
+    sim = ps.Simulation(title="Pv Force 1H Test",
                         total_force=total_force,
-                        dt_max=1e-20)
+                        dt_max=1e-19)
 
     # sim.add_p_a((0.3, 0.0, 0.0))
     # sim.add_ep_a((0.5, 0.0, 0.0))
     # sim.add_ep_a((0.5, 0.5, 0.5))
     e, p = sim.add_ep_a((0.0, 0.0, 0.0), radius=0.1)
-    # e.cur_state.v[1] *= 1.3
-    sim.add_p_a((0.2, 0.0, 0.0))
+    e.cur_state.v[1] *= 1.3
+    # sim.add_p_a((0.2, 0.0, 0.0))
+    # e, p = sim.add_ep_a((0.2, 0.0, 0.0), radius=0.5)
 
     # sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
     # sim.add_ep_a((1.0, 0.5, 0.2), radius=0.05)
@@ -104,12 +105,12 @@ def p_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
 
     """
     dv: ndarray = p1_state.v - p2_state.v
-    # dr: ndarray = p1_state.r - p2_state.r
-    # r = np.linalg.norm(dr)
-    # dr_hat = dr / r
-    # f_vec = (dr_hat * dv.dot(dr_hat) * ps.CONST_KE *
-    #          p1_state.p.charge *
-    #          p2_state.p.charge / (r * r * ps.CONST_C))
+    dr: ndarray = p1_state.r - p2_state.r
+    r = np.linalg.norm(dr)
+    dr_hat = dr / r
+    f_vec = (dr_hat * dv.dot(dr_hat) * ps.CONST_KE *
+             p1_state.p.charge *
+             p2_state.p.charge / (r * r * ps.CONST_C))
     #
     # # The below is rotating the force vector 90 deg in the
     # # dv dr plane.  Probably a better way to do this.
@@ -141,7 +142,31 @@ def p_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     # and es.  Testing if this messes up conservation of energy.
     # print("m is", m)
 
-    return m
+    # To test conservation of energy theory, make a force perpendicular
+    # to v which is NOT perpendicular to r.  My current thinking is
+    # leading me to believe that any force perpendicular to V will be
+    # energy safe.
+    # Ok, just use the m from above, and cross again to flip it 90deg.
+    pv = dv.copy()
+    pv[0], pv[1] = pv[1], -pv[0]     # swap x and y
+    # print("dv and pv", dv, pv)
+    pv = pv / np.linalg.norm(pv)    # Turn into unit vector
+    # print("pv normalized", pv, "len is", np.linalg.norm(pv))
+    pv *= np.linalg.norm(f_vec)     # match magnitude of f_vec
+
+    # print("pv is", pv)
+    # print("pv[z]", pv[2])
+    # print("pv dot dv should be zero", pv.dot(dv))
+
+    # This is a test to see if a force perpendicular to V is energy
+    # conserving even if not perpendicular to r.  Answers seems to
+    # be yes. But this random test produced very interesting and
+    # odd results.  Turned ellipse into circular orbit very quickly
+    # but then started to add tiny loops in the orbit -- all in 2D.
+    # Seemed to be if the electron got too far away it would do
+    # loop maybe?
+
+    return pv * -1000.0
 
 
 def combined_es_p_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
