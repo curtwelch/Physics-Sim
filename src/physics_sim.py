@@ -17,6 +17,7 @@ import time
 import math
 import numpy as np
 from numpy import ndarray
+from numpy.linalg import norm
 from typing import Tuple, Dict, Callable
 # import timeit
 import pygame
@@ -50,12 +51,12 @@ Energy_fix = False      # fix based on total PE+KE at start
 Energy_fix2 = False     # TODO is this useful or should be be deleted?
 
 
-def magnitude(vec: ndarray) -> float:
-    """ Compute length of 3D vector.
-        Just a wrapper for np.linalg.norm(vec)
-        sqrt(sum of squares)
-    """
-    return np.linalg.norm(vec)
+# def norm(vec: ndarray) -> float:
+#     """ Compute length of 3D vector.
+#         Just a wrapper for norm(vec)
+#         sqrt(sum of squares)
+#     """
+#     return norm(vec)
 
 
 class ParticleState:
@@ -113,7 +114,7 @@ class ParticleState:
 
         # r = (p1.ke * p1.charge**2) / (p1.mass * v**2 * j**2)
         # d = r*j
-        f = self.p.mass * magnitude(self.v) ** 3 * j ** 2 / \
+        f = self.p.mass * norm(self.v) ** 3 * j ** 2 / \
             (2.0 * math.pi * CONST_KE * self.p.charge ** 2)
         return f
 
@@ -198,7 +199,7 @@ class ParticleState:
 
         dr: ndarray = self.r - p_state.r
 
-        r = np.linalg.norm(dr)
+        r = norm(dr)
 
         dr_unit = dr / r
 
@@ -232,7 +233,7 @@ class ParticleState:
         # return self.v_force_old(p2_state)
         dv: ndarray = self.v - p_state.v
         dr: ndarray = self.r - p_state.r
-        r = np.linalg.norm(dr)
+        r = norm(dr)
         dr_hat = dr / r
         f_vec = (dr_hat * dv.dot(dr_hat) * CONST_KE * -1.0 *
                  np.abs(self.p.charge) *
@@ -255,7 +256,7 @@ class ParticleState:
         # r points from p (logically at origin) to self.
         # r_hat is the unit vector pointing the same way.
         dr: ndarray = self.r - p_state.r
-        r_hat: ndarray = dr / magnitude(dr)
+        r_hat: ndarray = dr / norm(dr)
 
         # Magnitude of v in line with r
         # vr = dot(relative_v, r_hat)
@@ -263,7 +264,7 @@ class ParticleState:
         # vr is the magnitude (and sign) of the relative velocity from
         # p to self.
         # es_f_mag = magnitude(self.es_force(p))
-        es_f_mag = magnitude(self.es_force(p_state))
+        es_f_mag = norm(self.es_force(p_state))
         # f_vec = product(es_f_mag * (-vr) / CONST_C, r_hat)
         f_vec: ndarray = (es_f_mag * -vr / CONST_C) * r_hat
         # First try at coding it:
@@ -1273,7 +1274,7 @@ class Simulation:
         p_vec = self.total_momentum()
         print(f"Momentum err:{p_vec[0]:8.1e} {p_vec[1]:8.1e} "
               f"{p_vec[2]:8.1e}", end='')
-        print(f"   mag: {magnitude(p_vec):.1e}")
+        print(f"   mag: {norm(p_vec):.1e}")
 
         print()
 
@@ -1340,14 +1341,14 @@ class Simulation:
             ke = p.cur_state.kinetic_energy()
             p.avgKE += (ke - p.avgKE) * 0.0001
             total_avg_ke += p.avgKE
-            total_momentum_mag += magnitude(p.cur_state.momentum())
+            total_momentum_mag += norm(p.cur_state.momentum())
 
         for i in range(len(self.world)):
             p = self.world[i]
             print(f"{p.symbol}{i:02}", end='')
             pv = p.cur_state.v
             print(f" vx:{pv[0]:10.2e}  vy:{pv[1]:10.2e}", end='')
-            vc = magnitude(pv) / CONST_C
+            vc = norm(pv) / CONST_C
             self.max_vc = max(self.max_vc, vc)
             print(f" {vc:0.5f}c", end='')
             print(" x:%6.2f A" % (p.cur_state.r[0] / ANGSTROM), end=' ')
@@ -1361,7 +1362,7 @@ class Simulation:
                         p.cur_state.kinetic_energy() * 100 / self.total_ke), end='')
             else:
                 print(" KE:?", end='')
-            momentum = magnitude(p.cur_state.momentum())
+            momentum = norm(p.cur_state.momentum())
             print(f"  p:{momentum:.2e}", end='')
             if total_momentum_mag:
                 print(f" {momentum * 100 / total_momentum_mag:5.1f}%", end='')

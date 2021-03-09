@@ -34,6 +34,7 @@
 import physics_sim as ps
 import numpy as np
 from numpy import ndarray
+from numpy.linalg import norm
 
 
 def main():
@@ -194,7 +195,7 @@ def p_force1(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     """
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
-    r = np.linalg.norm(dr)
+    r = norm(dr)
     dr_hat = dr / r
     f_vec = (dr_hat * dv.dot(dr_hat) * ps.CONST_KE *
              p1_state.p.charge *
@@ -203,7 +204,7 @@ def p_force1(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     # # The below is rotating the force vector 90 deg in the
     # # dv dr plane.  Probably a better way to do this.
     # dv_cross_dr = np.cross(dv, dr)
-    # len_dv_cross_dr = np.linalg.norm(dv_cross_dr)
+    # len_dv_cross_dr = norm(dv_cross_dr)
     # if len_dv_cross_dr == 0.0:
     #     return np.zeros(3)  # blows up, just punt and return zero
     # dv_cross_dr_hat = dv_cross_dr / len_dv_cross_dr
@@ -238,9 +239,9 @@ def p_force1(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     pv = dv.copy()
     pv[0], pv[1] = pv[1], -pv[0]     # swap x and y
     # print("dv and pv", dv, pv)
-    pv = pv / np.linalg.norm(pv)    # Turn into unit vector
-    # print("pv normalized", pv, "len is", np.linalg.norm(pv))
-    pv *= np.linalg.norm(f_vec)     # match magnitude of f_vec
+    pv = pv / norm(pv)    # Turn into unit vector
+    # print("pv normalized", pv, "len is", norm(pv))
+    pv *= norm(f_vec)     # match magnitude of f_vec
 
     # print("pv is", pv)
     # print("pv[z]", pv[2])
@@ -296,10 +297,10 @@ def p_force2(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     """
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
-    r = np.linalg.norm(dr)
+    r = norm(dr)
     if r == 0.0:
         return np.zeros(3)      # Blow up, just punt
-    v = np.linalg.norm(dv)
+    v = norm(dv)
     if v == 0.0:
         return np.zeros(3)      # no force in this case
     dr_hat = dr / r
@@ -350,10 +351,10 @@ def p_force3(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     """
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
-    r = np.linalg.norm(dr)
+    r = norm(dr)
     if r == 0.0:
         return np.zeros(3)      # Blow up, just punt
-    v = np.linalg.norm(dv)
+    v = norm(dv)
     if v == 0.0:
         return np.zeros(3)      # no force in this case
     dr_hat = dr / r
@@ -372,7 +373,7 @@ def p_force3(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
         f_vec *= f_mag
 
         # # Debug stuff
-        # f_hat = f_vec / np.linalg.norm(f_vec)
+        # f_hat = f_vec / norm(f_vec)
         # p = np.cross(dv_hat, dr_hat)
         # # print(f"dr_hat", dr_hat)
         # # print(f"dv_hat", dv_hat)
@@ -411,13 +412,15 @@ def p_force4(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
         away or towards, whichever is closer. 90 deg shift of what
         we do for PE.  Math is cleaner for this than Try 3.
 
+        RESULTS: fails to distribute energy from atom to atom.
+
     """
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
-    r = np.linalg.norm(dr)
+    r = norm(dr)
     if r == 0.0:
         return np.zeros(3)      # Blow up, just punt
-    v = np.linalg.norm(dv)
+    v = norm(dv)
     if v == 0.0:
         return np.zeros(3)      # no force in this case
     dr_hat: ndarray = dr / r
@@ -449,13 +452,61 @@ def p_force4(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     return f_vec
 
 
+def p_force5(p1_state: ps.ParticleState,
+             p2_state: ps.ParticleState) -> ndarray:
+    """
+        Perpendicular force.  Try 5.
+
+        Back to same concept as 3, but try a new math.
+
+        Fix both EP and EE PP logic to make force change
+        match cross product curve for strength.
+
+    """
+    dv: ndarray = p1_state.v - p2_state.v
+    dr: ndarray = p1_state.r - p2_state.r
+    r = norm(dr)
+    if r == 0.0:
+        return np.zeros(3)  # Blow up, just punt
+    v = norm(dv)
+    if v == 0.0:
+        return np.zeros(3)  # no force in this case
+    dr_hat: ndarray = dr / r
+    dv_hat: ndarray = dv / v
+    sign = np.sign(p1_state.p.charge * p2_state.p.charge)
+    if sign > 0:
+        # EE or PP make it turn in-line with r.
+        f_vec = np.cross(dv_hat, np.cross(dr_hat, dv_hat))
+        f_vec *= np.sign(dv_hat.dot(dr_hat))
+        # f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
+        es_mag = (ps.CONST_KE *
+                  p1_state.p.charge *
+                  p2_state.p.charge / (r * r))
+        f_mag = es_mag * v / ps.CONST_C
+        f_vec *= f_mag
+        return f_vec
+
+    # EP: turn towards parallel
+    v = (dv.dot(dr) * np.abs(ps.CONST_KE *
+                             p1_state.p.charge *
+                             p2_state.p.charge / (r * r * r * ps.CONST_C)))
+    # v = -(dv.dot(dr) * ps.CONST_KE *
+    #       p1_state.p.charge *
+    #       p2_state.p.charge / (r * r * r * ps.CONST_C))
+    # v is positive when going away, negative when approaching
+    # same for all mixes of particles.
+    f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat) * v
+
+    return f_vec
+
+
 def combined_es_p_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     """
         not written yet.
     """
     # dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
-    r = np.linalg.norm(dr)
+    r = norm(dr)
     if r == 0.0:
         return np.zeros(3)  # punt to stop nan
     dr_hat = dr / r
