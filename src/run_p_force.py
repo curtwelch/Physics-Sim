@@ -38,9 +38,9 @@ from numpy import ndarray
 
 def main():
     # do_1h()
-    # do_2h()
+    do_2h()
     # do_2pe()
-    do_6h()
+    # do_6h()
 
 
 def do_1h():
@@ -80,7 +80,7 @@ def do_1h():
 
 def do_2h():
     """ Simple test of p force with a single EP pair. """
-    sim = ps.Simulation(title="P Force 2H Test with EE PP",
+    sim = ps.Simulation(title="P Force 2H p_force4",
                         total_force=total_force,
                         dt_max=1e-19,
                         # pixels_per_angstrom=50,
@@ -121,7 +121,7 @@ def do_2pe():
 
 def do_6h():
     """ Simple test of 2P and one E. """
-    sim = ps.Simulation(title="6H Test with p force 2",
+    sim = ps.Simulation(title="6H Test with p_force4",
                         pixels_per_angstrom=10000,
                         total_force=total_force,
                         # dt_max=5e-23,
@@ -166,7 +166,7 @@ def total_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState):
         return f
 
     # New p force
-    f += p_force2(p1_state, p2_state)
+    f += p_force4(p1_state, p2_state)
     # f = combined_es_p_force(p1_state, p2_state)
 
     return f
@@ -259,11 +259,19 @@ def p_force1(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
 
 def p_force2(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     """
-
         Perpendicular force.  Try 2. Perpendicular to V vector but in
         the same plane with the r and v so that it TURNS the particle
         without speeding up or slowing down directly. This seems to
         maintain conservation of energy. Try 1 did not.
+
+        BUG: Using dv cross dr as I did in the code below means the
+        vectors is strongest at parallel, and weakest at 90 deg but
+        them I multiply by v which makes it strong at 90 and weak
+        at parallel. But the two combined ends up with som3thing like
+        strong at 45 weak everywhere else.  The direction is always
+        right but the magnitude is not how I wanted to code it. This
+        same bug is in p_force3() and p_force4().  I'll have to fix
+        and experiment now.
 
         So the thinking here is to push the particles into a parallel
         path where dv/dr is zero. When the particles are approaching
@@ -280,8 +288,65 @@ def p_force2(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
         strength if V points in line with R and zero when 90 deg to it.
         aka V dot R.
 
-        Maybe could flip sign for EE and PP so that they turn TOWARDS
-        each other?  But first, all particles turn away from each other.
+        Results: works well to turn elliptical orbits into circular but
+        does not work well to share energy between atoms. When atoms
+        get too close they tend transfer too much energy to one electon
+        which tears it away from the proton and flies wild. This
+        issue was addressed with p force 3.
+    """
+    dv: ndarray = p1_state.v - p2_state.v
+    dr: ndarray = p1_state.r - p2_state.r
+    r = np.linalg.norm(dr)
+    if r == 0.0:
+        return np.zeros(3)      # Blow up, just punt
+    v = np.linalg.norm(dv)
+    if v == 0.0:
+        return np.zeros(3)      # no force in this case
+    dr_hat = dr / r
+    dv_hat = dv / v
+    v = (dv.dot(dr) * np.abs(ps.CONST_KE *
+         p1_state.p.charge *
+         p2_state.p.charge / (r * r * r * ps.CONST_C)))
+    # Below without abs() it flips sign for EE and PP which
+    # makes them move non-parallel.  That was unstable:
+    # v = -(dv.dot(dr) * ps.CONST_KE *
+    #       p1_state.p.charge *
+    #       p2_state.p.charge / (r * r * r * ps.CONST_C))
+    # v is positive when going away, negative when approaching
+    # same for all mixes of particles.
+    f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat) * v
+
+    return f_vec
+
+
+def p_force3(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
+    """
+        Perpendicular force.  Try 3. Keeping force perpendicular to the
+        v to conserve energy. PE turn parallel.  PP and EE turn towards
+        each other.
+
+        Same as try 2 for PE, but changed PP and EE so they turn towards
+        each other.  The idea being when headed together they drive their
+        velocity towards zero.  This drives relative V to zero to help
+        balance energy across atoms.  This worked.  On a 2H and 6H tests
+        the atoms stayed well balanced and never did an electron get
+        stripped off with too much energy.
+
+        The math was hard to do this as I intended so I cheated and
+        used v dot r which means strong pull at 90 deg. weak at 0 or
+        180. The intent was strong at 180 weak at 0 with linear
+        difference based on angle.  Could not code that with dot and
+        cross.  Would have needed to calculate the angle and work with
+        that which I did not bother with.
+
+        Results: worked very well to both turn orbits circular and to
+        keep energy balanced.  With 2H test KE of E was 34% 65% which
+        shows this interesting tendency to balanced at multiples which
+        is something real atoms seem to do.  And with 6H test the KE of
+        the 6 electrons ranged from 13.2% to 19.8% (on one point when I
+        stopped to sample) which is well balanced around 1/6 or 16.7%
+        each.
+
     """
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
@@ -300,6 +365,69 @@ def p_force2(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
         # products.  OK, I can cheat making it maximal strong a 90 deg
         # and weaker as it moves away from that.
         f_vec = np.cross(dv_hat, np.cross(dr_hat, dv_hat))
+        es_mag = (ps.CONST_KE *
+                  p1_state.p.charge *
+                  p2_state.p.charge / (r * r))
+        f_mag = es_mag * v / ps.CONST_C
+        f_vec *= f_mag
+
+        # # Debug stuff
+        # f_hat = f_vec / np.linalg.norm(f_vec)
+        # p = np.cross(dv_hat, dr_hat)
+        # # print(f"dr_hat", dr_hat)
+        # # print(f"dv_hat", dv_hat)
+        # # print(f" f_vec", f_vec)
+        # # print(f" f_hat", f_hat)
+        # # print(f"v x r   ", p)
+        # # print(f"fh dot r", f_hat.dot(dr_hat), "should be positive always")
+        # # print(f"f dot vh", abs(round(f_hat.dot(dv_hat), 10)), "should be zero always")
+        # # print("fh dot p ", abs(round(f_hat.dot(p), 10)), "should be zero shows f in plane with r v")
+        # # print()
+        # assert f_hat.dot(dr_hat) > 0, "f dot dr is negative"
+        # assert abs(round(f_hat.dot(dv_hat), 10)) == 0.0, "f dot v not zero"
+        # assert abs(round(f_hat.dot(p), 10)) == 0.0, "f dot p not zero"
+
+        return f_vec
+
+    # EP: turn towards parallel
+    v = (dv.dot(dr) * np.abs(ps.CONST_KE *
+         p1_state.p.charge *
+         p2_state.p.charge / (r * r * r * ps.CONST_C)))
+    # v = -(dv.dot(dr) * ps.CONST_KE *
+    #       p1_state.p.charge *
+    #       p2_state.p.charge / (r * r * r * ps.CONST_C))
+    # v is positive when going away, negative when approaching
+    # same for all mixes of particles.
+    f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat) * v
+
+    return f_vec
+
+
+def p_force4(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
+    """
+
+        Perpendicular force.  Try 4. Same idea as 3, but for EE and PP
+        we turn in line.  Instead of turning towards each other, turn
+        away or towards, whichever is closer. 90 deg shift of what
+        we do for PE.  Math is cleaner for this than Try 3.
+
+    """
+    dv: ndarray = p1_state.v - p2_state.v
+    dr: ndarray = p1_state.r - p2_state.r
+    r = np.linalg.norm(dr)
+    if r == 0.0:
+        return np.zeros(3)      # Blow up, just punt
+    v = np.linalg.norm(dv)
+    if v == 0.0:
+        return np.zeros(3)      # no force in this case
+    dr_hat: ndarray = dr / r
+    dv_hat: ndarray = dv / v
+    sign = np.sign(p1_state.p.charge * p2_state.p.charge)
+    if sign > 0:
+        # EE or PP make it turn in-line with r.
+        f_vec = np.cross(dv_hat, np.cross(dr_hat, dv_hat))
+        f_vec *= np.sign(dv_hat.dot(dr_hat))
+        # f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
         es_mag = (ps.CONST_KE *
                   p1_state.p.charge *
                   p2_state.p.charge / (r * r))
