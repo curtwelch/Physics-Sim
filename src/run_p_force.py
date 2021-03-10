@@ -36,6 +36,8 @@ import numpy as np
 from numpy import ndarray
 from numpy.linalg import norm
 
+Force_Title = ""
+
 
 def main():
     # do_1h()
@@ -44,9 +46,19 @@ def main():
     # do_6h()
 
 
+def init_title():
+    # Create a fake sim and make it do a force calculation
+    # which sets Force_Title
+    # Stupid hack but it works.
+    sim = ps.Simulation(total_force=total_force)
+    sim.add_ep_a((0.0, 0.0, 0.0))
+    sim.init_world()
+
+
 def do_1h():
     """ Simple test of p force with a single EP pair. """
-    sim = ps.Simulation(title="Pv Force 2H Test",
+    init_title()
+    sim = ps.Simulation(title="do_1h " + Force_Title,
                         total_force=total_force,
                         dt_max=1e-19,
                         # pixels_per_angstrom=50,
@@ -81,7 +93,8 @@ def do_1h():
 
 def do_2h():
     """ Simple test of p force with a single EP pair. """
-    sim = ps.Simulation(title="P Force 2H p_force4",
+    init_title()
+    sim = ps.Simulation(title="do_2h " + Force_Title,
                         total_force=total_force,
                         dt_max=1e-19,
                         # pixels_per_angstrom=50,
@@ -97,14 +110,15 @@ def do_2h():
     # e, p = sim.add_ep_a((0.6, 0.0, 0.1), radius=0.08)
 
     # sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
-    e, p = sim.add_ep_a((1.0, 0.5, 0.2), radius=0.05)
+    _e, _p = sim.add_ep_a((1.0, 0.5, 0.2), radius=0.05)
 
     sim.run()
 
 
 def do_2pe():
     """ Simple test of 2P and one E. """
-    sim = ps.Simulation(title="2PE Test with p force 2",
+    init_title()
+    sim = ps.Simulation(title="do_2pe " + Force_Title,
                         pixels_per_angstrom=10000,
                         total_force=total_force,
                         dt_max=5e-23)
@@ -122,7 +136,8 @@ def do_2pe():
 
 def do_6h():
     """ Simple test of 2P and one E. """
-    sim = ps.Simulation(title="6H Test with p_force4",
+    init_title()
+    sim = ps.Simulation(title="do_6h " + Force_Title,
                         pixels_per_angstrom=10000,
                         total_force=total_force,
                         # dt_max=5e-23,
@@ -166,8 +181,10 @@ def total_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState):
         # No p force for Neutrons
         return f
 
+    pf = p_force3(p1_state, p2_state)
+
     # New p force
-    f += p_force4(p1_state, p2_state)
+    f += pf
     # f = combined_es_p_force(p1_state, p2_state)
 
     return f
@@ -193,6 +210,9 @@ def p_force1(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
         idea described above (stuff in comments does).
 
     """
+    global Force_Title
+    Force_Title = "p_force1"
+
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
@@ -267,12 +287,12 @@ def p_force2(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
 
         BUG: Using dv cross dr as I did in the code below means the
         vectors is strongest at parallel, and weakest at 90 deg but
-        them I multiply by v which makes it strong at 90 and weak
-        at parallel. But the two combined ends up with som3thing like
+        then I multiply by v which makes it strong at 90 and weak
+        at parallel. But the two combined ends up with something like
         strong at 45 weak everywhere else.  The direction is always
         right but the magnitude is not how I wanted to code it. This
         same bug is in p_force3() and p_force4().  I'll have to fix
-        and experiment now.
+        and experiment now. (actually decided it wasn't wrong)
 
         So the thinking here is to push the particles into a parallel
         path where dv/dr is zero. When the particles are approaching
@@ -291,10 +311,12 @@ def p_force2(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
 
         Results: works well to turn elliptical orbits into circular but
         does not work well to share energy between atoms. When atoms
-        get too close they tend transfer too much energy to one electon
+        get too close they tend transfer too much energy to one electron
         which tears it away from the proton and flies wild. This
         issue was addressed with p force 3.
     """
+    global Force_Title
+    Force_Title = "p_force2"
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
@@ -326,6 +348,11 @@ def p_force3(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
         v to conserve energy. PE turn parallel.  PP and EE turn towards
         each other.
 
+        ERROR:  What I coded, and what turned out to work, was PP and EE
+        turn AWAY from each other!  I had the sign backward and never
+        realized it!  When I tried "turn towards" it failed to balance
+        energy between atoms.
+
         Same as try 2 for PE, but changed PP and EE so they turn towards
         each other.  The idea being when headed together they drive their
         velocity towards zero.  This drives relative V to zero to help
@@ -349,6 +376,8 @@ def p_force3(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
         each.
 
     """
+    global Force_Title
+    Force_Title = "p_force3"
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
@@ -415,6 +444,8 @@ def p_force4(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
         RESULTS: fails to distribute energy from atom to atom.
 
     """
+    global Force_Title
+    Force_Title = "p_force4"
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
@@ -459,31 +490,81 @@ def p_force5(p1_state: ps.ParticleState,
 
         Back to same concept as 3, but try a new math.
 
-        Fix both EP and EE PP logic to make force change
-        match cross product curve for strength.
+        New math didn't work.  And when I coded "turn towards"
+        it failed to share energy across atoms. This then led
+        to me figuring out I coded try 3 backward!  I actually
+        coded "turn away", by mistake but that is what worked!
+
+        So this ended up being exactly the same as force 3.
+
+        So, new idea.  what if PE is "Turn towards" instead of turn to
+        parallel?  That would make the math simple with no special case
+        for PP vs PE.  Will it have a side effect of making circular
+        orbits as well?
+
+        Result (turn away EE PP, towards PE): H2 no round orbits formed.
+        H6 blew up when PE got too close.  Doesn't seem good but the
+        blow up was really a simulation limit not a force error. But
+        doesn't feel good.
+
+        What about always turn away?
+
+        Result (all turn away): doesn't turn elliptical into circular.
+        Doesn't seem to share energy very well, but Does not blow up
+        with electrons flying away so far as I've seen.  So it's doing
+        something right.  H6 test which is super ast has such weird
+        orbits that the DT is jumping up and down and generally running
+        very slow.  So hard to tell what it's doing. Atoms seem to push
+        away from each other.
 
     """
+    global Force_Title
+    Force_Title = "p_force5"
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
     if r == 0.0:
-        return np.zeros(3)  # Blow up, just punt
+        # Two particles are at the same location in space.
+        return np.zeros(3)  # Blows up, just punt
     v = norm(dv)
     if v == 0.0:
+        # Zero relative velocity.  This is not a bad thing
+        # and can happen at startup but is highly unlikely
+        # to happen otherwise.
         return np.zeros(3)  # no force in this case
     dr_hat: ndarray = dr / r
     dv_hat: ndarray = dv / v
-    sign = np.sign(p1_state.p.charge * p2_state.p.charge)
-    if sign > 0:
-        # EE or PP make it turn in-line with r.
-        f_vec = np.cross(dv_hat, np.cross(dr_hat, dv_hat))
-        f_vec *= np.sign(dv_hat.dot(dr_hat))
+    p_sign = np.sign(p1_state.p.charge * p2_state.p.charge)
+    # if p_sign > 0:
+    if True:
+        # EE or PP them turn towards each other.
+        f_vec = np.cross(dv_hat, np.cross(dv_hat, dr_hat))
         # f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
         es_mag = (ps.CONST_KE *
                   p1_state.p.charge *
                   p2_state.p.charge / (r * r))
         f_mag = es_mag * v / ps.CONST_C
         f_vec *= f_mag
+        f_vec *= -1     # make them turn away from each other!!!!!
+        f_vec *= p_sign     # turn away for all particle pairs!
+
+        # # Debug stuff
+        # f_hat = f_vec / norm(f_vec)
+        # p = np.cross(dv_hat, dr_hat)
+        # # print(f"dr_hat", dr_hat)
+        # # print(f"dv_hat", dv_hat)
+        # # print(f" es_mag", es_mag)
+        # # print(f" f_vec", f_vec, "norm", norm(f_vec))
+        # # print(f" f_hat", f_hat)
+        # # print(f"v x r   ", p)
+        # # print(f"fh dot r", f_hat.dot(dr_hat), "should be positive always")
+        # # print(f"f dot vh", abs(round(f_hat.dot(dv_hat), 10)), "should be zero always")
+        # # print("fh dot p ", abs(round(f_hat.dot(p), 10)), "should be zero shows f in plane with r v")
+        # # print()
+        # # assert f_hat.dot(dr_hat) > 0, "f dot dr is negative"
+        # assert abs(round(f_hat.dot(dv_hat), 10)) == 0.0, "f dot v not zero"
+        # assert abs(round(f_hat.dot(p), 10)) == 0.0, "f dot p not zero"
+
         return f_vec
 
     # EP: turn towards parallel
