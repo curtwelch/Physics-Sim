@@ -545,6 +545,7 @@ class Simulation:
                  dt_max=1.0,
                  dt_adjust=True,
                  stop_at=0,
+                 target_draw_rate=15,
                  do_v_force=True,
                  total_force: Callable[[ParticleState, ParticleState],
                                        ndarray] = None,
@@ -563,6 +564,7 @@ class Simulation:
             dt_adjust: boolean - Adjust time step automatically
             stop_at: int - simulation stops when it goes past this.
                      0 means run forever. in units of dt_min steps.
+            target_draw_rate: int - window updates per seconds
             do_v_force: boolean - include v_force calculations
             total_force: A function to calculate force between to particles
         """
@@ -584,6 +586,8 @@ class Simulation:
         self.fps_avg = 1.0      # Computed average speed of simulation
         self.run_me = True
         self.cycle_count = 0
+        self.target_draw_rate = target_draw_rate
+        self.current_loops_per_update = 0
 
         # now is an unlimited precision int because floats
         # don't have enough precision.
@@ -941,17 +945,21 @@ class Simulation:
             now = time.time()
             loop_time = now - last_time
             fps = 1 / loop_time
-            self.fps_avg += (fps - self.fps_avg) * .001
+            self.fps_avg += (fps - self.fps_avg) * .01
             last_time = now
 
-            if loop_cnt % 10 == 0:
+            self.current_loops_per_update = \
+                max(1, int(self.fps_avg / self.target_draw_rate))
+
+            if loop_cnt % self.current_loops_per_update == 0:
                 self.bounce_particles()
                 self.draw_world()
 
             self.total_ke = self.total_kinetic_energy()
             self.total_pe = self.total_potential_energy()
 
-            if loop_cnt % 30 == 0:
+            if loop_cnt % (self.current_loops_per_update * 2) == 0:
+                # Half as fast as the window updates.
                 self.print_stats()
 
                 if 0.0 < self.stop_at < self.now:
@@ -1065,7 +1073,10 @@ class Simulation:
         # More complex display here could fix that.
         print(f"Sim Time:{now_ns:.20f} ns", end='')
         print("  DT:%4.1e" % self.dt, end='')
-        print(f"  FPS:{self.fps_avg:.1f}")
+        print(f"  FPS:{self.fps_avg:.1f}", end='')
+        print(f"  Target Update Rate:{self.target_draw_rate}", end='')
+        print(f"  Loops/update:{self.current_loops_per_update}", end='')
+        print()
 
         if self.stop_at > 0.0:
             print(f"    Stop at {self.stop_at * 1000_000_000:.20f} ns")
