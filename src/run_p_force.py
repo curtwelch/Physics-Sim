@@ -140,7 +140,7 @@ def do_6h():
     sim = ps.Simulation(title="do_6h " + Force_Title,
                         pixels_per_angstrom=10000,
                         total_force=total_force,
-                        dt_max=5e-20,
+                        # dt_max=5e-20,
                         # dt_max=1e-30,
                         )
 
