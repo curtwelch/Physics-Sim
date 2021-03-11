@@ -1118,7 +1118,7 @@ class Simulation:
         self.last_ke = self.total_ke
         self.last_pe = self.total_pe
 
-        self.print_proton_distance()
+        # self.print_proton_distance()
 
         print()
 
@@ -1355,6 +1355,10 @@ class Simulation:
         """
         if isinstance(p, Neutron):
             # Don't bounce Neutrons for now
+            return False
+
+        if isinstance(p, Electron):
+            # Don't bounce Electrons
             return False
 
         x = self.space_to_pixels(p.cur_state.r[0])
