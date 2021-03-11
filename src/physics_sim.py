@@ -545,7 +545,7 @@ class Simulation:
                  dt_max=1.0,
                  dt_adjust=True,
                  stop_at=0,
-                 target_draw_rate=15,
+                 target_draw_rate=30,
                  do_v_force=True,
                  total_force: Callable[[ParticleState, ParticleState],
                                        ndarray] = None,
@@ -958,8 +958,8 @@ class Simulation:
             self.total_ke = self.total_kinetic_energy()
             self.total_pe = self.total_potential_energy()
 
-            if loop_cnt % (self.current_loops_per_update * 2) == 0:
-                # Half as fast as the window updates.
+            if loop_cnt % (self.current_loops_per_update * 4) == 0:
+                # 1/4 as often as window updates
                 self.print_stats()
 
                 if 0.0 < self.stop_at < self.now:
@@ -1075,8 +1075,10 @@ class Simulation:
         print(f"Sim Time:{now_ns:.20f} ns", end='')
         print("  DT:%4.1e" % self.dt, end='')
         print(f"  FPS:{self.fps_avg:.1f}", end='')
-        print(f"  Target Update Rate:{self.target_draw_rate}", end='')
-        print(f"  Loops/update:{self.current_loops_per_update}", end='')
+        # print(f"  Target Rate:{self.target_draw_rate}", end='')
+        # print(f"  Loops/update:{self.current_loops_per_update}", end='')
+        update_rate = self.fps_avg/self.current_loops_per_update
+        print(f"  Window Update Rate:{update_rate:.1f}")
         print()
 
         if self.stop_at > 0.0:
