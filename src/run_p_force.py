@@ -41,9 +41,9 @@ Force_Title = ""
 
 def main():
     # do_1h()
-    # do_2h()
+    do_2h()
     # do_2pe()
-    do_6h()
+    # do_6h()
 
 
 def init_title():

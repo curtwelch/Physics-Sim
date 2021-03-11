@@ -1071,6 +1071,7 @@ class Simulation:
         # be correct to 15 digits but will look like it's not counting
         # up when it is when it gets too large relative to dt.
         # More complex display here could fix that.
+
         print(f"Sim Time:{now_ns:.20f} ns", end='')
         print("  DT:%4.1e" % self.dt, end='')
         print(f"  FPS:{self.fps_avg:.1f}", end='')
