@@ -512,7 +512,7 @@ def p_force5(p1_state: ps.ParticleState,
         Result (all turn away): doesn't turn elliptical into circular.
         Doesn't seem to share energy very well, but Does not blow up
         with electrons flying away so far as I've seen.  So it's doing
-        something right.  H6 test which is super ast has such weird
+        something right.  H6 test which is super slow. Has such weird
         orbits that the DT is jumping up and down and generally running
         very slow.  So hard to tell what it's doing. Atoms seem to push
         away from each other.
@@ -535,8 +535,7 @@ def p_force5(p1_state: ps.ParticleState,
     dr_hat: ndarray = dr / r
     dv_hat: ndarray = dv / v
     p_sign = np.sign(p1_state.p.charge * p2_state.p.charge)
-    # if p_sign > 0:
-    if True:
+    if p_sign > 0:
         # EE or PP them turn towards each other.
         f_vec = np.cross(dv_hat, np.cross(dv_hat, dr_hat))
         # f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
@@ -546,7 +545,7 @@ def p_force5(p1_state: ps.ParticleState,
         f_mag = es_mag * v / ps.CONST_C
         f_vec *= f_mag
         f_vec *= -1     # make them turn away from each other!!!!!
-        f_vec *= p_sign     # turn away for all particle pairs!
+        # f_vec *= p_sign     # turn away for all particle pairs!
 
         # # Debug stuff
         # f_hat = f_vec / norm(f_vec)
