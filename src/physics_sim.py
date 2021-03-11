@@ -151,41 +151,6 @@ class ParticleState:
 
         return f
 
-    # def add_force(self, p: 'Particle', p2_state: ParticleState):  # and set end force as well
-    #     if p is self:
-    #         return
-    #
-    #     # dx = (self.cur_state_r0 - p.cur_state_r0)
-    #     # dy = (self.cur_state_r1 - p.cur_state_r1)
-    #     # dz = (self.cur_state_r2 - p.cur_state_r2)
-    #     dr = p2_state.r - p2_state.r
-    #
-    #     r2, l2 = self.distance2(p)
-    #
-    #     if r2 == 0.0:
-    #         return  # Bogus but prevents DBZ
-    #
-    #     force = self.ke * (self.charge * p.charge) / l2
-    #
-    #     r = math.sqrt(r2)
-    #
-    #     # self.fx += force * dx / r
-    #     # self.fy += force * dy / r
-    #     # self.fz += force * dz / r
-    #     self.cur_state.f += force * dr / r
-    #
-    #     if do_v_force:
-    #         f = self.v_force(p.cur_state)
-    #         # self.fx += f[0]
-    #         # self.fy += f[1]
-    #         # self.fz += f[2]
-    #         self.cur_state.f += f
-    #
-    #     # self.end_fx = self.fx
-    #     # self.end_fy = self.fy
-    #     # self.end_fz = self.fz
-    #     self.end_state.f = np.copy(self.cur_state.f)
-
     def es_force(self, p_state: 'ParticleState') -> ndarray:
         """ Electrostatic force on self by p2_state per Coulomb's law. """
         # Force on self, caused by p.
@@ -201,12 +166,12 @@ class ParticleState:
 
         r = norm(dr)
 
-        dr_unit = dr / r
+        dr_hat = dr / r
 
         if r == 0.0:
             return np.zeros(3)  # Bogus but prevents DBZ -- should be infinity
 
-        return dr_unit * CONST_KE * self.p.charge * p_state.p.charge / (r * r)
+        return dr_hat * CONST_KE * self.p.charge * p_state.p.charge / (r * r)
 
     # def v_force_test(self, p2_state: 'ParticleState'):
     #     n = timeit.timeit('nv = self.v_force_new(p2_state)', '', number=100, globals=locals())
@@ -346,13 +311,6 @@ class ParticleState:
 
         return d_sqr, max(d_sqr, RLimit ** 2)
 
-    # @staticmethod
-    # def limited_distance_sqr(d_sqr: float):
-    #     """ Limit distance to RLimit to solve computational problems.
-    #         return (real, limited) tuple
-    #     """
-    #     return d_sqr, max(d_sqr, RLimit ** 2)
-
 
 class Particle:
     """ The root class for Protons and Electrons.
@@ -386,38 +344,6 @@ class Particle:
         self.charge = 0.0   # Defined by subclass for e and p
         self.mass = 0.0     # Defined in subclass for e and p
         self.symbol = 'e'   # Defined in subclass for e and p
-
-    # def add_static_force(self):
-    #     """ Add static forces to beginning and ending forces. """
-    #     self.cur_state.f += self.static_f
-    #     self.end_state.f += self.static_f
-
-    # def es_force(self, p: 'Particle'):
-    #     # Electrostatic force between self and p per coulomb's law.
-    #     # Force on self, caused by p.
-    #     # real force, not R limit limited force
-    #     # Returns 0,0,0 instead of infinity for two particles located
-    #     # on same spot.
-    #
-    #     if p is self:
-    #         return np.zeros(3)
-    #
-    #     # dx = (self.cur_state_r0 - p.cur_state_r0)
-    #     # dy = (self.cur_state_r1 - p.cur_state_r1)
-    #     # dz = (self.cur_state_r2 - p.cur_state_r2)
-    #     dr: ndarray = self.cur_state.r - p.cur_state.r
-    #
-    #     r2, l2 = self.distance_squared(p)
-    #
-    #     if r2 == 0.0:
-    #         return np.zeros(3)  # Bogus but prevents DBZ -- should be infinity
-    #
-    #     force = CONST_KE * self.charge * p.charge / r2
-    #
-    #     r = math.sqrt(r2)
-    #
-    #     # return force * dx / r, force * dy / r, force * dz / r
-    #     return dr * (force / r)
 
     # def gravity_force(self, p: 'Particle'):
     #     # Magnitude of gravity between self and other particle
@@ -539,113 +465,6 @@ class Particle:
         # Everything else will be recomputed again.
 
         self.end_state.f[:] = self.cur_state.f
-
-    # def kinetic_energy(self):
-    #     """ Kinetic energy of cur_state. """
-    #     return self.cur_state.kinetic_energy()
-
-    # def kinetic_end_energy(self):
-    #     """ Kinetic energy of end_state """
-    #     return self.end_state.kinetic_energy()
-
-    # def set_kinetic_energy(self, ke: float):
-    #     """
-    #         Update magnitude of velocity to match using given ke
-    #         Keep direction of vector the same.
-    #     """
-    #     new_v2 = ke / (0.5 * self.mass)
-    #     # old_v2 = (self.vx ** 2.0 + self.vy ** 2.0 + self.vz ** 2.0)
-    #     # old_v2 = np.sum(self.v() ** 2)
-    #     old_v2 = np.sum(self.cur_state.v ** 2)
-    #     # print "in set kinetic new_v2 is", new_v2
-    #     # print "in set kinetic old_v2 is", old_v2
-    #     new_v = math.sqrt(new_v2)
-    #     old_v = math.sqrt(old_v2)
-    #     # # self.vx *= new_v2 / old_v2
-    #     # # self.vy *= new_v2 / old_v2
-    #     # # self.vz *= new_v2 / old_v2
-    #     # self.vx *= new_v / old_v
-    #     # self.vy *= new_v / old_v
-    #     # self.vz *= new_v / old_v
-    #     self.cur_state.v *= new_v / old_v
-
-    # def distance_squared(self, p: 'Particle'):
-    #     """ Distance**2 between self and p.
-    #         :returns: distance**2, limited_distance**2
-    #     """
-    #
-    #     if p is self:
-    #         return self.limited_distance2(0.0)
-    #
-    #     d_squared: float = np.sum((self.cur_state.r - p.cur_state.r) ** 2)
-    #
-    #     return self.limited_distance2(d_squared)
-
-    # def end_distance_squared(self, p: 'Particle'):  # distance squared
-    #     """ Distance**2 between self and p end states.
-    #         :returns: distance**2, limited_distance**2
-    #     """
-    #     if p is self:
-    #         return self.limited_distance2(0.0)
-    #
-    #     # dx = (self.end_x - p.end_x)
-    #     # dy = (self.end_y - p.end_y)
-    #     # dz = (self.end_z - p.end_z)
-    #
-    #     # d2 = dx ** 2.0 + dy ** 2.0 + dz ** 2.0
-    #
-    #     d_squared: float = np.sum((self.end_state.r - p.end_state.r) ** 2)
-    #
-    #     return self.limited_distance2(d_squared)
-
-    # @staticmethod
-    # def limited_distance2(d2: float):
-    #     """ Limit distance to RLimit to solve computational problems.
-    #         return (real, limited) tuple
-    #     """
-    #     return d2, max(d2, RLimit ** 2)
-
-    # def distance(self, p):
-    #     r, r_limited = self.distance_squared(p)
-    #     return math.sqrt(r), math.sqrt(r_limited)
-
-    # def end_distance(self, p):
-    #     r, r_limited = self.end_distance_squared(p)
-    #     return math.sqrt(r), math.sqrt(r_limited)
-
-    # def potential_energy(self, p):
-    #     # potential energy between self and particle P
-    #
-    #     if p is self:
-    #         return 0.0  # No potential energy for self
-    #
-    #     r, r_limited = self.distance(p)
-    #
-    #     return self.potential_energy_for_distance(p, r)
-
-    # def potential_end_energy(self, p):
-    #     # potential energy between self and particle P
-    #
-    #     if p is self:
-    #         return 0.0  # Bogus should be +infinity
-    #
-    #     r, r_limited = self.end_distance(p)
-    #
-    #     return self.potential_energy_for_distance(p, r)
-
-    # def potential_energy_for_distance(self, p, d):
-    #
-    #     # if d == 0:
-    #     # return 0.0	# Bogus should be +infinity
-    #
-    #     if d >= RLimit:
-    #         return CONST_KE * self.charge * p.charge / d
-    #
-    #     self.sim.inside_r_limit_count += 1
-    #
-    #     x = CONST_KE * self.charge * p.charge / RLimit
-    #
-    #     return x + (x / RLimit) * (RLimit - d)
 
 
 class Electron(Particle):
