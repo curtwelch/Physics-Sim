@@ -41,9 +41,9 @@ Force_Title = ""
 
 def main():
     # do_1h()
-    do_2h()
+    # do_2h()
     # do_2pe()
-    # do_6h()
+    do_6h()
 
 
 def init_title():
@@ -135,12 +135,12 @@ def do_2pe():
 
 
 def do_6h():
-    """ Simple test of 2P and one E. """
+    """ Test of 6H (6P 6E) """
     init_title()
     sim = ps.Simulation(title="do_6h " + Force_Title,
                         pixels_per_angstrom=10000,
                         total_force=total_force,
-                        # dt_max=5e-23,
+                        dt_max=5e-20,
                         # dt_max=1e-30,
                         )
 
