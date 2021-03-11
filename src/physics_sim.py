@@ -1078,7 +1078,7 @@ class Simulation:
         # print(f"  Target Rate:{self.target_draw_rate}", end='')
         # print(f"  Loops/update:{self.current_loops_per_update}", end='')
         update_rate = self.fps_avg/self.current_loops_per_update
-        print(f"  Window Update Rate:{update_rate:.1f}")
+        print(f"  Window Update Rate:{update_rate:.1f}", end='')
         print()
 
         if self.stop_at > 0.0:
@@ -1118,7 +1118,7 @@ class Simulation:
         self.last_ke = self.total_ke
         self.last_pe = self.total_pe
 
-        # self.print_proton_distance()
+        self.print_proton_distance()
 
         print()
 
@@ -1155,16 +1155,20 @@ class Simulation:
                     v = 0.0
                 self.p_pair_last_distance[pair] = (
                     d, self.now, avg_v)  # save for next time
-                print("Distance between", end=' ')
-                print(f"P{i:02d} P{j:02d} {d / ANGSTROM:11.6f} A", end='')
+                # print("Distance between", end=' ')
+                print(f"P{i:02d} P{j:02d} {d / ANGSTROM:9.6f} A", end='')
                 print(f"   v:{v:+.2e}", end='')
                 print(f"   v:{avg_v:+.2e} m/s", end='')
-                print()
+                if cnt % 2 == 1:
+                    print()
+                else:
+                    print(end="     ")
                 cnt += 1
                 if cnt > 10:
                     break
             if cnt > 10:
                 break
+        print()
 
     def print_particle_stats(self):
         total_avg_ke = 0.0
