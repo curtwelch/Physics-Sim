@@ -549,6 +549,7 @@ class Simulation:
                  do_v_force=True,
                  total_force: Callable[[ParticleState, ParticleState],
                                        ndarray] = None,
+                 pull_center_force=0.0,
                  ):
         """
         3D Simulation of Protons and Electrons.
@@ -567,18 +568,26 @@ class Simulation:
             target_draw_rate: int - window updates per seconds
             do_v_force: boolean - include v_force calculations
             total_force: A function to calculate force between to particles
+            pull_center_force: constant force towards center of world.
         """
         self.title = title      # Screen Title
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.screen_depth = screen_depth
         self.pixels_per_angstrom = pixels_per_angstrom
+        # Center of screen (0,0,0 is upper left front corner)
+        self.center_of_screen = np.array((
+            (self.screen_width / self.pixels_per_angstrom * ANGSTROM) / 2.0,
+            (self.screen_height / self.pixels_per_angstrom * ANGSTROM) / 2.0,
+            (self.screen_depth / self.pixels_per_angstrom * ANGSTROM) / 2.0))
+
         self.dt_min = dt_min            # defines units of self.now
         self.dt_max = dt_max
         self.dt_adjust = dt_adjust
         self.stop_at: int = stop_at     # Simulations time to stop
         self.do_v_force = do_v_force
         self.total_force = total_force
+        self.pull_center_force = pull_center_force
 
         self.world: list[Particle] = []
 
@@ -805,13 +814,8 @@ class Simulation:
         """ Move world center of mass to center of screen. """
         center_m = self.center_of_mass()
 
-        # Center of screen (0,0,0 is upper left front corner)
-        center = (
-            (self.screen_width / self.pixels_per_angstrom * ANGSTROM) / 2.0,
-            (self.screen_height / self.pixels_per_angstrom * ANGSTROM) / 2.0,
-            (self.screen_depth / self.pixels_per_angstrom * ANGSTROM) / 2.0)
-
-        dr = center-center_m    # Distance vector to move everything
+        # dr is how much we have to move each particle.
+        dr = self.center_of_screen-center_m
 
         for p in self.world:
             p.cur_state.r += dr
@@ -877,6 +881,12 @@ class Simulation:
                 p2.end_state.f -= f
             # Add constant static force (experimental hack)
             p1.end_state.f += p1.static_f
+            # Add pull to center force -- fake gravity
+            if self.pull_center_force:
+                # Positive force pulls towards center
+                dr = self.center_of_screen - p1.end_state.r
+                dr_hat = dr / norm(dr)
+                p1.end_state.f += dr_hat * self.pull_center_force
 
     def total_kinetic_energy(self):
         total_ke = 0.0
@@ -1084,7 +1094,11 @@ class Simulation:
         if self.stop_at > 0.0:
             print(f"    Stop at {self.stop_at * 1000_000_000:.20f} ns")
 
-        print("do_v_force:", self.do_v_force)
+        print("do_v_force:", self.do_v_force, end='')
+        if self.pull_center_force:
+            print(f"   pull_center_force: {self.pull_center_force:.1e}")
+        print()
+
         print()
 
         re = ((self.total_ke - self.starting_total_ke) + (
