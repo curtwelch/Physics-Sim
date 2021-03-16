@@ -798,6 +798,9 @@ class Simulation:
 
     def init_world(self):
         self.center_mass()
+        self.init_forces_and_energy()
+
+    def init_forces_and_energy(self):
         self.zero_momentum()
         self.init_forces()
 
@@ -852,7 +855,7 @@ class Simulation:
             Set up cur_state and end_state to start simulation.
             Cur_state position and velocity are the starting state.
         """
-        # Copy to cur_state to end_state for all p.
+        # Copy cur_state to end_state for all p.
         for p1 in self.world:
             p1.end_state = p1.cur_state.copy()
         # Compute the end forces using the end_state.
@@ -1034,10 +1037,14 @@ class Simulation:
             elif isinstance(p, Electron):
                 sort_order = 2
             return z, sort_order
+
         s_list = sorted(self.world, key=sort_key)
+
         for p2 in s_list:
             self.draw_particle(p2)
+
         pygame.display.flip()
+
         return
 
     def draw_particle(self, p: Particle):
@@ -1056,10 +1063,10 @@ class Simulation:
             color = BLUE
             size = 5
 
-        min_scale = 1.0
-        max_scale = 3.0
+        min_scale = 1.0     # At back of screen
+        max_scale = 3.0     # At front of screen
         size *= (z / float(self.screen_depth)) * (max_scale - min_scale) + min_scale
-        size = abs(int(size))
+        size = max(1, int(size))
 
         pygame.draw.circle(self.screen, color, (x, y), size, 0)
 
@@ -1096,7 +1103,8 @@ class Simulation:
 
         print("do_v_force:", self.do_v_force, end='')
         if self.pull_center_force:
-            print(f"   pull_center_force: {self.pull_center_force:.1e}")
+            print(f"   pull_center_force: ", end='')
+            print(f"{self.pull_center_force:.1e}", end='')
         print()
 
         print()
@@ -1137,8 +1145,6 @@ class Simulation:
         print()
 
         self.print_particle_stats()
-
-        print(f"                   Max Velocity: {self.max_vc:7.5f}c")
 
     def print_proton_distance(self):
         """
@@ -1194,6 +1200,14 @@ class Simulation:
             total_avg_ke += p.avgKE
             total_momentum_mag += norm(p.cur_state.momentum())
 
+        e_ke = [p.avgKE for p in self.world if isinstance(p, Electron)]
+        e_ke.sort()
+        ke_min = min(e_ke)
+        print("Electron KE ratios:", end='')
+        for ke in e_ke:
+            print(f" {ke/ke_min:.1f}", end='')
+        print()
+
         for i in range(len(self.world)):
             p = self.world[i]
             print(f"{p.symbol}{i:02}", end='')
@@ -1229,6 +1243,8 @@ class Simulation:
                       end='')  # wave length
 
             print()
+
+        print(f"                   Max Velocity: {self.max_vc:7.5f}c")
 
     def calculate_end_state(self):
         """
@@ -1348,7 +1364,7 @@ class Simulation:
             # head off screen. Could be a disaster for a large sim with lots of
             # fast moving particles bouncing all the time.
 
-            self.zero_momentum()
+            # self.zero_momentum()
 
             # We move particles back into the window on a bounce and that
             # changes the PE. And if we use ke_change_factor that changes the
@@ -1356,12 +1372,15 @@ class Simulation:
             # so the bounce doesn't make it look like we have a large
             # simulation error (energy change from start of run).
 
-            self.total_ke = self.total_kinetic_energy()
-            self.total_pe = self.total_potential_energy()
+            # self.total_ke = self.total_kinetic_energy()
+            # self.total_pe = self.total_potential_energy()
+            #
+            # self.starting_total_ke = self.total_ke
+            # self.starting_total_pe = self.total_pe
 
-            self.starting_total_ke = self.total_ke
-            self.starting_total_pe = self.total_pe
             # TODO wait, do I need to fix end_state and forces?
+            # Ok, reset all velocity and energies on bounce then.
+            self.init_forces_and_energy()
 
         return
 

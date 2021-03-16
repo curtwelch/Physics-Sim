@@ -98,6 +98,7 @@ def do_2h():
                         total_force=total_force,
                         dt_max=1e-19,
                         # pixels_per_angstrom=50,
+                        pull_center_force=1e-10,
                         )
 
     # sim.add_p_a((0.3, 0.0, 0.0))
@@ -137,12 +138,13 @@ def do_2pe():
 def do_6h():
     """ Test of 6H (6P 6E) """
     init_title()
-    sim = ps.Simulation(title="do_6h [NO E BOUNCE] " + Force_Title,
+    sim = ps.Simulation(title="do_6h [reset forces on bounce] " + Force_Title,
                         pixels_per_angstrom=10000,
                         total_force=total_force,
                         dt_max=5e-20,
                         # dt_max=1e-30,
-                        pull_center_force=1e-4,
+                        # pull_center_force=5e-5,
+                        pull_center_force=5e-6,
                         )
 
     e, p = sim.add_ep_a((0.0, 0.0, 0.000), radius=0.001)
