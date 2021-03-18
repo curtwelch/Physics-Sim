@@ -41,9 +41,9 @@ Force_Title = ""
 
 def main():
     # do_1h()
-    # do_2h()
+    do_2h()
     # do_2pe()
-    do_6h()
+    # do_6h()
 
 
 def init_title():
@@ -74,9 +74,9 @@ def do_1h():
     # sim.add_ep_a((0.5, 0.0, 0.0))
     # sim.add_ep_a((0.5, 0.5, 0.5))
     e, p = sim.add_ep_a((0.0, 0.0, 0.0), radius=0.1)
-    v = e.cur_state.v[1]    # v y of electron
-    e.cur_state.v[1] += v/f
-    p.cur_state.v[1] += v/f
+    v = e.cur_state.v[1]  # v y of electron
+    e.cur_state.v[1] += v / f
+    p.cur_state.v[1] += v / f
 
     # e.cur_state.v[1] *= 1.3
     # sim.add_p_a((0.2, 0.0, 0.0))
@@ -84,9 +84,9 @@ def do_1h():
 
     # sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
     e, p = sim.add_ep_a((1.0, 0.5, 0.2), radius=0.2)
-    v = e.cur_state.v[1]    # v y of electron
-    e.cur_state.v[1] -= v/f
-    p.cur_state.v[1] -= v/f
+    v = e.cur_state.v[1]  # v y of electron
+    e.cur_state.v[1] -= v / f
+    p.cur_state.v[1] -= v / f
 
     sim.run()
 
@@ -184,16 +184,19 @@ def total_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState):
         # No p force for Neutrons
         return f
 
-    pf = p_force3(p1_state, p2_state)
+    # pf = p_force3(p1_state, p2_state)
 
     # New p force
-    f += pf
+    # f += pf
     # f = combined_es_p_force(p1_state, p2_state)
+
+    f += m_force(p1_state, p2_state)
 
     return f
 
 
-def p_force1(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
+def p_force1(p1_state: ps.ParticleState,
+             p2_state: ps.ParticleState) -> ndarray:
     """
         Perpendicular force.  Perpendicular to r vector but in the same plane
         with the r and v so that it speeds up or slows down the particles.
@@ -260,11 +263,11 @@ def p_force1(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     # energy safe.
     # Ok, just use the m from above, and cross again to flip it 90deg.
     pv = dv.copy()
-    pv[0], pv[1] = pv[1], -pv[0]     # swap x and y
+    pv[0], pv[1] = pv[1], -pv[0]  # swap x and y
     # print("dv and pv", dv, pv)
-    pv = pv / norm(pv)    # Turn into unit vector
+    pv = pv / norm(pv)  # Turn into unit vector
     # print("pv normalized", pv, "len is", norm(pv))
-    pv *= norm(f_vec)     # match magnitude of f_vec
+    pv *= norm(f_vec)  # match magnitude of f_vec
 
     # print("pv is", pv)
     # print("pv[z]", pv[2])
@@ -281,7 +284,8 @@ def p_force1(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     return pv * -1000.0
 
 
-def p_force2(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
+def p_force2(p1_state: ps.ParticleState,
+             p2_state: ps.ParticleState) -> ndarray:
     """
         Perpendicular force.  Try 2. Perpendicular to V vector but in
         the same plane with the r and v so that it TURNS the particle
@@ -324,15 +328,15 @@ def p_force2(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
     if r == 0.0:
-        return np.zeros(3)      # Blow up, just punt
+        return np.zeros(3)  # Blow up, just punt
     v = norm(dv)
     if v == 0.0:
-        return np.zeros(3)      # no force in this case
+        return np.zeros(3)  # no force in this case
     dr_hat = dr / r
     dv_hat = dv / v
     v = (dv.dot(dr) * np.abs(ps.CONST_KE *
-         p1_state.p.charge *
-         p2_state.p.charge / (r * r * r * ps.CONST_C)))
+                             p1_state.p.charge *
+                             p2_state.p.charge / (r * r * r * ps.CONST_C)))
     # Below without abs() it flips sign for EE and PP which
     # makes them move non-parallel.  That was unstable:
     # v = -(dv.dot(dr) * ps.CONST_KE *
@@ -345,7 +349,8 @@ def p_force2(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     return f_vec
 
 
-def p_force3(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
+def p_force3(p1_state: ps.ParticleState,
+             p2_state: ps.ParticleState) -> ndarray:
     """
         Perpendicular force.  Try 3. Keeping force perpendicular to the
         v to conserve energy. PE turn parallel.  PP and EE turn towards
@@ -385,10 +390,10 @@ def p_force3(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
     if r == 0.0:
-        return np.zeros(3)      # Blow up, just punt
+        return np.zeros(3)  # Blow up, just punt
     v = norm(dv)
     if v == 0.0:
-        return np.zeros(3)      # no force in this case
+        return np.zeros(3)  # no force in this case
     dr_hat = dr / r
     dv_hat = dv / v
     sign = np.sign(p1_state.p.charge * p2_state.p.charge)
@@ -424,8 +429,8 @@ def p_force3(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
 
     # EP: turn towards parallel
     v = (dv.dot(dr) * np.abs(ps.CONST_KE *
-         p1_state.p.charge *
-         p2_state.p.charge / (r * r * r * ps.CONST_C)))
+                             p1_state.p.charge *
+                             p2_state.p.charge / (r * r * r * ps.CONST_C)))
     # v = -(dv.dot(dr) * ps.CONST_KE *
     #       p1_state.p.charge *
     #       p2_state.p.charge / (r * r * r * ps.CONST_C))
@@ -436,7 +441,8 @@ def p_force3(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     return f_vec
 
 
-def p_force4(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
+def p_force4(p1_state: ps.ParticleState,
+             p2_state: ps.ParticleState) -> ndarray:
     """
 
         Perpendicular force.  Try 4. Same idea as 3, but for EE and PP
@@ -453,10 +459,10 @@ def p_force4(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
     if r == 0.0:
-        return np.zeros(3)      # Blow up, just punt
+        return np.zeros(3)  # Blow up, just punt
     v = norm(dv)
     if v == 0.0:
-        return np.zeros(3)      # no force in this case
+        return np.zeros(3)  # no force in this case
     dr_hat: ndarray = dr / r
     dv_hat: ndarray = dv / v
     sign = np.sign(p1_state.p.charge * p2_state.p.charge)
@@ -474,8 +480,8 @@ def p_force4(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
 
     # EP: turn towards parallel
     v = (dv.dot(dr) * np.abs(ps.CONST_KE *
-         p1_state.p.charge *
-         p2_state.p.charge / (r * r * r * ps.CONST_C)))
+                             p1_state.p.charge *
+                             p2_state.p.charge / (r * r * r * ps.CONST_C)))
     # v = -(dv.dot(dr) * ps.CONST_KE *
     #       p1_state.p.charge *
     #       p2_state.p.charge / (r * r * r * ps.CONST_C))
@@ -547,7 +553,7 @@ def p_force5(p1_state: ps.ParticleState,
                   p2_state.p.charge / (r * r))
         f_mag = es_mag * v / ps.CONST_C
         f_vec *= f_mag
-        f_vec *= -1     # make them turn away from each other!!!!!
+        f_vec *= -1  # make them turn away from each other!!!!!
         # f_vec *= p_sign     # turn away for all particle pairs!
 
         # # Debug stuff
@@ -583,7 +589,125 @@ def p_force5(p1_state: ps.ParticleState,
     return f_vec
 
 
-def combined_es_p_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) -> ndarray:
+def m_force(p1_state: ps.ParticleState,
+            p2_state: ps.ParticleState) -> ndarray:
+    """
+        Magnetic Force.
+
+        2021-3-17 Test new understanding of mag force
+
+        I think I grasp Maxwell's equations now.  And
+        though I have confusion about how exactly to apply
+        it to two particles, I have an idea worth trying.
+
+        From the old code from a few years back:
+
+        # Calculate the force created on self, by the magnetic
+        # field generated by p.
+        # B = (1e-7 q1 v1 x rHat) / r²
+        # F = q2 V2 x B
+        # F = q2 V2 X (1e-7 q1 v1 x rHat) / r²
+        # rHat is the unit vector pointing from p to self
+
+        The code above left me confused because if V1 and V2
+        were in the same direction there should be a strong
+        magnetic field for two parallel wires with currents
+        going the same same way.  But Now I understand that
+        a change in E is equivalent to current in Maxwell's
+        equation and v x r_hat measures that.  And we need
+        a double cross product to get the B force pointing
+        the right way, and that gives us the need V² in the
+        above equations to make B force the same as K force
+        when V is c.
+
+        Makes we wonder if the F vector should rotate based
+        on the speed?  So instead of K plus the same size
+        force at 90 deg, make K rotate based on speed?
+
+        But first, just have B force as:
+
+        F = 1e-7 * q1 * q2 * V X (V x rHat) / r²
+
+        NO, NO, I was thinking V dot rHat.  But the formula needs to be
+        cross to get the vector pointing the right way.  If we flip one
+        of the signs or something, does the sum of the two cross
+        products counter act each other and make it act like dot so
+        that it's zero at 90 degrees and greater for others?  I have to
+        play with the math tomorrow.  No, the second cross will just be
+        a multiply and a angle twist since the first guarantees the
+        second will be 90 deg.
+
+
+    """
+    global Force_Title
+    Force_Title = "m_force"
+    dv: ndarray = p1_state.v - p2_state.v
+    dr: ndarray = p1_state.r - p2_state.r
+    r = norm(dr)
+    if r == 0.0:
+        # Two particles are at the same location in space.
+        return np.zeros(3)  # Blows up, just punt
+    v = norm(dv)
+    if v == 0.0:
+        # Zero relative velocity.  This is not a bad thing
+        # and can happen at startup but is highly unlikely
+        # to happen otherwise.
+        return np.zeros(3)  # no force in this case
+    dr_hat: ndarray = dr / r
+    # dv_hat: ndarray = dv / v
+    # p_sign = np.sign(p1_state.p.charge * p2_state.p.charge)
+    # if p_sign > 0:
+    #     # EE or PP them turn towards each other.
+    #     f_vec = np.cross(dv_hat, np.cross(dv_hat, dr_hat))
+    #     # f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
+    #     es_mag = (ps.CONST_KE *
+    #               p1_state.p.charge *
+    #               p2_state.p.charge / (r * r))
+    #     f_mag = es_mag * v / ps.CONST_C
+    #     f_vec *= f_mag
+    #     f_vec *= -1  # make them turn away from each other!!!!!
+    #     # f_vec *= p_sign     # turn away for all particle pairs!
+    #
+    #     # # Debug stuff
+    #     # f_hat = f_vec / norm(f_vec)
+    #     # p = np.cross(dv_hat, dr_hat)
+    #     # # print(f"dr_hat", dr_hat)
+    #     # # print(f"dv_hat", dv_hat)
+    #     # # print(f" es_mag", es_mag)
+    #     # # print(f" f_vec", f_vec, "norm", norm(f_vec))
+    #     # # print(f" f_hat", f_hat)
+    #     # # print(f"v x r   ", p)
+    #     # # print(f"fh dot r", f_hat.dot(dr_hat), "should be positive always")
+    #     # # print(f"f dot vh", abs(round(f_hat.dot(dv_hat), 10)), "should be zero always")
+    #     # # print("fh dot p ", abs(round(f_hat.dot(p), 10)), "should be zero shows f in plane with r v")
+    #     # # print()
+    #     # # assert f_hat.dot(dr_hat) > 0, "f dot dr is negative"
+    #     # assert abs(round(f_hat.dot(dv_hat), 10)) == 0.0, "f dot v not zero"
+    #     # assert abs(round(f_hat.dot(p), 10)) == 0.0, "f dot p not zero"
+    #
+    #     return f_vec
+
+    # New mag force idea
+    f_vec = (np.cross(dv, np.cross(dv, dr_hat)) *
+             (p1_state.p.charge * p2_state.p.charge / (r * r)))
+    # v = -(dv.dot(dr) * ps.CONST_KE *
+    #       p1_state.p.charge *
+    #       p2_state.p.charge / (r * r * r * ps.CONST_C))
+    # v is positive when going away, negative when approaching
+    # same for all mixes of particles.
+    # f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat) * v
+
+    # YEAH THIS OLD code was close to correct!  But I need it to
+    # be full strength with V is up or down! This didn't do that!
+    # The new code above isn't right.  IT needs to be rotated 90 deg
+    # so that's it's zero Magnetic when V is 90 deg to right.
+    # Will figure this out tomorrow.
+
+    return f_vec
+
+
+def combined_es_p_force(p1_state: ps.ParticleState,
+                        p2_state: ps.ParticleState) -> ndarray:
     """
         not written yet.
     """
@@ -595,7 +719,8 @@ def combined_es_p_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState) 
     dr_hat = dr / r
 
     # es force is:
-    es_vec = dr_hat * ps.CONST_KE * p1_state.p.charge * p2_state.p.charge / (r*r)
+    es_vec = dr_hat * ps.CONST_KE * p1_state.p.charge * p2_state.p.charge / (
+            r * r)
     return es_vec
 
 
