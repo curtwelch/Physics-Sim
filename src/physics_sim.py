@@ -220,9 +220,8 @@ class ParticleState:
         r = norm(dr)
         dr_hat = dr / r
         v = dv.dot(dr_hat)
-        const = -1e-7 * CONST_P_CHARGE ** 2
-        # TODO Warning, Using const like this breaks fake sized particles.
-        f_vec = dr_hat * (v * np.abs(v) * const / (r * r))
+        qq = -1e-7 * self.p.charge * p_state.p.charge
+        f_vec = dr_hat * (v * np.abs(v) * qq / (r * r))
         return f_vec
 
     def v_force_old(self, p_state: 'ParticleState'):
@@ -1414,9 +1413,9 @@ class Simulation:
             # Don't bounce Neutrons for now
             return False
 
-        # if isinstance(p, Electron):
-        #     # Don't bounce Electrons
-        #     return False
+        if isinstance(p, Electron):
+            # Don't bounce Electrons
+            return False
 
         x = self.space_to_pixels(p.cur_state.r[0])
         y = self.space_to_pixels(p.cur_state.r[1])

@@ -37,29 +37,34 @@ from numpy import ndarray
 from numpy.linalg import norm
 
 Force_Title = ""
+Total_force = None
 
 
 def main():
+    global Total_force
+    # Total_force = total_force
+    Total_force = combined_es_p_force2b
+    init_title()
+
     # do_1h()
-    # do_2h()
+    do_2h()
     # do_2pe()
-    do_6h()
+    # do_6h()
 
 
 def init_title():
     # Create a fake sim and make it do a force calculation
     # which sets Force_Title
-    # Stupid hack but it works.
-    sim = ps.Simulation(total_force=total_force)
+    # Stupid hack but it works.  Until it doesn't.
+    sim = ps.Simulation(total_force=Total_force)
     sim.add_ep_a((0.0, 0.0, 0.0))
     sim.init_world()
 
 
 def do_1h():
     """ Simple test of p force with a single EP pair. """
-    init_title()
     sim = ps.Simulation(title="do_1h v_force" + Force_Title,
-                        total_force=total_force,
+                        total_force=Total_force,
                         dt_max=1e-22,
                         # pixels_per_angstrom=50,
                         pixels_per_angstrom=20000,
@@ -98,10 +103,9 @@ def do_1h():
 
 def do_2h():
     """ Simple test of p force with a single EP pair. """
-    init_title()
     sim = ps.Simulation(title="do_2h " + Force_Title,
-                        # total_force=total_force,
-                        dt_max=2e-20,
+                        total_force=Total_force,
+                        dt_max=1e-20,
                         # pixels_per_angstrom=50,
                         # pull_center_force=1e-10,
                         )
@@ -123,7 +127,6 @@ def do_2h():
 
 def do_2pe():
     """ Simple test of 2P and one E. """
-    init_title()
     sim = ps.Simulation(title="do_2pe " + Force_Title,
                         pixels_per_angstrom=10000,
                         total_force=total_force,
@@ -142,13 +145,12 @@ def do_2pe():
 
 def do_6h():
     """ Test of 6H (6P 6E) """
-    init_title()
-    sim = ps.Simulation(title="do_6h [v2_force] " + Force_Title,
+    sim = ps.Simulation(title="do_6h [combined pullc] " + Force_Title,
                         pixels_per_angstrom=10000,
-                        total_force=total_force,
+                        total_force=Total_force,
                         dt_max=1e-20,
                         # dt_max=1e-30,
-                        # pull_center_force=5e-6,
+                        pull_center_force=5e-6,
                         )
 
     e, p = sim.add_ep_a((0.0, 0.0, 0.000), radius=0.001)
@@ -304,7 +306,7 @@ def p_force2(p1_state: ps.ParticleState,
         right but the magnitude is not how I wanted to code it. This
         same bug is in p_force3() and p_force4().  I'll have to fix
         and experiment now. (actually decided it wasn't wrong) [later
-        wrote p_froce2b() to try the fix]
+        wrote p_force2b() to try the fixed version -- works well]
 
         So the thinking here is to push the particles into a parallel
         path where dv/dr is zero. When the particles are approaching
@@ -794,26 +796,44 @@ def p_force2b(p1_state: ps.ParticleState,
     f_vec /= norm(f_vec)
     # Scaler force:
     dr_dt = dv.dot(dr_hat)   # positive goes away
-    f = dr_dt * np.abs(dr_dt) * np.abs(1e-7 * p1_state.p.charge * p2_state.p.charge / (r * r))
+    f = dr_dt * np.abs(dr_dt * 1e-7 * p1_state.p.charge * p2_state.p.charge / (r * r))
     return f_vec * f
 
 
-def combined_es_p_force(p1_state: ps.ParticleState,
-                        p2_state: ps.ParticleState) -> ndarray:
+def combined_es_p_force2b(p1_state: ps.ParticleState,
+                          p2_state: ps.ParticleState) -> ndarray:
     """
-        not written yet.
+        Combined P-fore2b and es force.
+
+        Runs a little aster if we calculate them both at the same
+        time.  Only about 10% faster. Not a huge deal.
     """
-    # dv: ndarray = p1_state.v - p2_state.v
+    global Force_Title
+    Force_Title = "combined p_force2b and es"
+    dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
     if r == 0.0:
-        return np.zeros(3)  # punt to stop nan
+        return np.zeros(3)  # blow up - abort
     dr_hat = dr / r
-
+    qq_rr = p1_state.p.charge * p2_state.p.charge / (r * r)
     # es force is:
-    es_vec = dr_hat * ps.CONST_KE * p1_state.p.charge * p2_state.p.charge / (
-            r * r)
-    return es_vec
+    es_vec = dr_hat * ps.CONST_KE * qq_rr
+
+    v = norm(dv)
+    if v == 0.0:
+        # Zero relative velocity.
+        return es_vec  # no v force in this case
+
+    dv_hat = dv / v
+    # vf_vec always points down
+    vf_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
+    vf_hat = vf_vec / norm(vf_vec)
+    # v force Scaler magnitude:
+    dr_dt = dv.dot(dr_hat)   # positive goes away
+    vf = dr_dt * np.abs(dr_dt * 1e-7 * qq_rr)
+
+    return es_vec + vf_hat * vf
 
 
 if __name__ == '__main__':
