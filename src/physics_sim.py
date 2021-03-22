@@ -147,7 +147,7 @@ class ParticleState:
 
         # Add electro-drag force
         if self.p.sim.do_v_force:
-            f += self.v_force(p_state)
+            f += self.v2_force(p_state)
 
         return f
 
@@ -205,12 +205,32 @@ class ParticleState:
                  np.abs(p_state.p.charge) / (r * r * CONST_C))
         return f_vec
 
+    def v2_force(self, p_state: 'ParticleState'):
+        """
+            v² version of v_force.  Checking the idea that I fucked
+            up by using v instead of v² and that with v² it might
+            be energy conserving?
+
+            Hard to tell, but I think the answer is that v2 on the
+            Y alone is not energy conserving either.
+        """
+        # return self.v_force_old(p2_state)
+        dv: ndarray = self.v - p_state.v
+        dr: ndarray = self.r - p_state.r
+        r = norm(dr)
+        dr_hat = dr / r
+        v = dv.dot(dr_hat)
+        const = -1e-7 * CONST_P_CHARGE ** 2
+        # TODO Warning, Using const like this breaks fake sized particles.
+        f_vec = dr_hat * (v * np.abs(v) * const / (r * r))
+        return f_vec
+
     def v_force_old(self, p_state: 'ParticleState'):
         """ 2021-02-13 New idea.
             At least I hope it's new.  It was years ago I did the others.
             Use the velocity which the two particles are approaching to define
             the magnetic force.  Make the magnetic force act in the same line
-            as the column force, but make it slow down velocity. So as to limit
+            as the coulomb force, but make it slow down velocity. So as to limit
             V to be the speed of light.  If V == c, then the magnetic force
             is just the opposite of the Coulomb force amd cancels it out.
         """
@@ -1196,7 +1216,7 @@ class Simulation:
 
         for p in self.world:
             ke = p.cur_state.kinetic_energy()
-            p.avgKE += (ke - p.avgKE) * 0.0001
+            p.avgKE += (ke - p.avgKE) * 0.01
             total_avg_ke += p.avgKE
             total_momentum_mag += norm(p.cur_state.momentum())
 
@@ -1394,9 +1414,9 @@ class Simulation:
             # Don't bounce Neutrons for now
             return False
 
-        if isinstance(p, Electron):
-            # Don't bounce Electrons
-            return False
+        # if isinstance(p, Electron):
+        #     # Don't bounce Electrons
+        #     return False
 
         x = self.space_to_pixels(p.cur_state.r[0])
         y = self.space_to_pixels(p.cur_state.r[1])

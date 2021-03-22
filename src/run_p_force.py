@@ -41,9 +41,9 @@ Force_Title = ""
 
 def main():
     # do_1h()
-    do_2h()
+    # do_2h()
     # do_2pe()
-    # do_6h()
+    do_6h()
 
 
 def init_title():
@@ -58,35 +58,40 @@ def init_title():
 def do_1h():
     """ Simple test of p force with a single EP pair. """
     init_title()
-    sim = ps.Simulation(title="do_1h " + Force_Title,
+    sim = ps.Simulation(title="do_1h v_force" + Force_Title,
                         total_force=total_force,
-                        dt_max=1e-19,
+                        dt_max=1e-22,
                         # pixels_per_angstrom=50,
+                        pixels_per_angstrom=20000,
                         )
 
     # Black hole in the middle! :)
-    n = sim.add_n((0, 0, 0), n=2)
-    n.lock_in_place = True
+    # n = sim.add_n((0, 0, 0), n=2)
+    # n.lock_in_place = True
 
-    f = 200
+    # One EP in elliptical orbit.
+    e, p = sim.add_ep_a((0.0, 0.0, 0.0), radius=0.001)
+    e.cur_state.v[1] *= 1.3
 
-    # sim.add_p_a((0.3, 0.0, 0.0))
-    # sim.add_ep_a((0.5, 0.0, 0.0))
-    # sim.add_ep_a((0.5, 0.5, 0.5))
-    e, p = sim.add_ep_a((0.0, 0.0, 0.0), radius=0.1)
-    v = e.cur_state.v[1]  # v y of electron
-    e.cur_state.v[1] += v / f
-    p.cur_state.v[1] += v / f
+    # f = 200
+    #
+    # # sim.add_p_a((0.3, 0.0, 0.0))
+    # # sim.add_ep_a((0.5, 0.0, 0.0))
+    # # sim.add_ep_a((0.5, 0.5, 0.5))
+    # e, p = sim.add_ep_a((0.0, 0.0, 0.0), radius=0.1)
+    # v = e.cur_state.v[1]  # v y of electron
+    # e.cur_state.v[1] += v / f
+    # p.cur_state.v[1] += v / f
 
     # e.cur_state.v[1] *= 1.3
     # sim.add_p_a((0.2, 0.0, 0.0))
     # e, p = sim.add_ep_a((0.6, 0.0, 0.1), radius=0.08)
 
-    # sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
-    e, p = sim.add_ep_a((1.0, 0.5, 0.2), radius=0.2)
-    v = e.cur_state.v[1]  # v y of electron
-    e.cur_state.v[1] -= v / f
-    p.cur_state.v[1] -= v / f
+    # # sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
+    # e, p = sim.add_ep_a((1.0, 0.5, 0.2), radius=0.2)
+    # v = e.cur_state.v[1]  # v y of electron
+    # e.cur_state.v[1] -= v / f
+    # p.cur_state.v[1] -= v / f
 
     sim.run()
 
@@ -95,10 +100,10 @@ def do_2h():
     """ Simple test of p force with a single EP pair. """
     init_title()
     sim = ps.Simulation(title="do_2h " + Force_Title,
-                        total_force=total_force,
-                        dt_max=1e-19,
+                        # total_force=total_force,
+                        dt_max=2e-20,
                         # pixels_per_angstrom=50,
-                        pull_center_force=1e-10,
+                        # pull_center_force=1e-10,
                         )
 
     # sim.add_p_a((0.3, 0.0, 0.0))
@@ -138,13 +143,12 @@ def do_2pe():
 def do_6h():
     """ Test of 6H (6P 6E) """
     init_title()
-    sim = ps.Simulation(title="do_6h [reset forces on bounce] " + Force_Title,
+    sim = ps.Simulation(title="do_6h [v2_force] " + Force_Title,
                         pixels_per_angstrom=10000,
                         total_force=total_force,
-                        dt_max=5e-20,
+                        dt_max=1e-20,
                         # dt_max=1e-30,
-                        # pull_center_force=5e-5,
-                        pull_center_force=5e-6,
+                        # pull_center_force=5e-6,
                         )
 
     e, p = sim.add_ep_a((0.0, 0.0, 0.000), radius=0.001)
@@ -190,7 +194,7 @@ def total_force(p1_state: ps.ParticleState, p2_state: ps.ParticleState):
     # f += pf
     # f = combined_es_p_force(p1_state, p2_state)
 
-    f += m_force(p1_state, p2_state)
+    f += p_force2b(p1_state, p2_state)
 
     return f
 
@@ -299,7 +303,8 @@ def p_force2(p1_state: ps.ParticleState,
         strong at 45 weak everywhere else.  The direction is always
         right but the magnitude is not how I wanted to code it. This
         same bug is in p_force3() and p_force4().  I'll have to fix
-        and experiment now. (actually decided it wasn't wrong)
+        and experiment now. (actually decided it wasn't wrong) [later
+        wrote p_froce2b() to try the fix]
 
         So the thinking here is to push the particles into a parallel
         path where dv/dr is zero. When the particles are approaching
@@ -383,6 +388,12 @@ def p_force3(p1_state: ps.ParticleState,
         stopped to sample) which is well balanced around 1/6 or 16.7%
         each.
 
+        Result later: I think this stopped working when I modified the
+        the display logic to auto adjust to track a frame rate which
+        then changed how often it was checking for bounce which them,
+        somehow, broke this. Ugh.  This is also messy with with the
+        sign test to use different code for EP vs EE PP.  There must
+        be something cleaner.
     """
     global Force_Title
     Force_Title = "p_force3"
@@ -445,10 +456,10 @@ def p_force4(p1_state: ps.ParticleState,
              p2_state: ps.ParticleState) -> ndarray:
     """
 
-        Perpendicular force.  Try 4. Same idea as 3, but for EE and PP
-        we turn in line.  Instead of turning towards each other, turn
-        away or towards, whichever is closer. 90 deg shift of what
-        we do for PE.  Math is cleaner for this than Try 3.
+        Perpendicular force.  Try 4. Same idea as 3, but for EE and PP we turn
+        in line with r.  Instead of turning towards each other, turn away or
+        towards, whichever is closer. 90 deg shift of what we do for PE.  Math
+        is cleaner for this than Try 3.
 
         RESULTS: fails to distribute energy from atom to atom.
 
@@ -640,7 +651,7 @@ def m_force(p1_state: ps.ParticleState,
 
     """
     global Force_Title
-    Force_Title = "m_force"
+    Force_Title = "m_force in plane of paper"
     dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
@@ -654,20 +665,8 @@ def m_force(p1_state: ps.ParticleState,
         # to happen otherwise.
         return np.zeros(3)  # no force in this case
     dr_hat: ndarray = dr / r
-    # dv_hat: ndarray = dv / v
-    # p_sign = np.sign(p1_state.p.charge * p2_state.p.charge)
-    # if p_sign > 0:
-    #     # EE or PP them turn towards each other.
-    #     f_vec = np.cross(dv_hat, np.cross(dv_hat, dr_hat))
-    #     # f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
-    #     es_mag = (ps.CONST_KE *
-    #               p1_state.p.charge *
-    #               p2_state.p.charge / (r * r))
-    #     f_mag = es_mag * v / ps.CONST_C
-    #     f_vec *= f_mag
-    #     f_vec *= -1  # make them turn away from each other!!!!!
-    #     # f_vec *= p_sign     # turn away for all particle pairs!
-    #
+    dv_hat: ndarray = dv / v
+
     #     # # Debug stuff
     #     # f_hat = f_vec / norm(f_vec)
     #     # p = np.cross(dv_hat, dr_hat)
@@ -687,23 +686,116 @@ def m_force(p1_state: ps.ParticleState,
     #
     #     return f_vec
 
-    # New mag force idea
-    f_vec = (np.cross(dv, np.cross(dv, dr_hat)) *
-             (p1_state.p.charge * p2_state.p.charge / (r * r)))
-    # v = -(dv.dot(dr) * ps.CONST_KE *
-    #       p1_state.p.charge *
-    #       p2_state.p.charge / (r * r * r * ps.CONST_C))
-    # v is positive when going away, negative when approaching
-    # same for all mixes of particles.
-    # f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat) * v
+    # # Old p_force2():
+    # # v = -(dv.dot(dr) * ps.CONST_KE *
+    # #       p1_state.p.charge *
+    # #       p2_state.p.charge / (r * r * r * ps.CONST_C))
+    # # v is positive when going away, negative when approaching
+    # # same for all mixes of particles.
+    # # f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat) * v
+    #
+    # This is the actual old stuff with the abs():
+    # # # EP: turn towards parallel
+    # # v = (dv.dot(dr) * np.abs(ps.CONST_KE *
+    # #                          p1_state.p.charge *
+    # #                          p2_state.p.charge / (r * r * r * ps.CONST_C)))
 
-    # YEAH THIS OLD code was close to correct!  But I need it to
+    # 3-17 YEAH THIS OLD code was close to correct!  But I need it to
     # be full strength with V is up or down! This didn't do that!
     # The new code above isn't right.  IT needs to be rotated 90 deg
     # so that's it's zero Magnetic when V is 90 deg to right.
     # Will figure this out tomorrow.
 
+    # 3-18 Right, so the old code I first created in p_force2() is close
+    # what I want now, but without the going to zero at effect at 180.
+    # So I'm just going to fix that by normalizing the cross products
+    # and calculating the correct magnitude separately as I was doing
+    # in v_force2()
+
+    # This is the normal out of paper vector:
+    # f_vec = np.cross(dr_hat, dv_hat)
+
+    # This is on the paper vector:
+    f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
+
+    f_vec_hat = f_vec / norm(f_vec)
+
+    # f magnitude = v·r_hat 1e-7 qqv²/r²
+    m_mag = (1e-7 * dv.dot(dr_hat) * v *
+             p1_state.p.charge * p2_state.p.charge / (r * r))
+    m_f = f_vec_hat * (m_mag * -1)
+
+    # fdv = m_f.dot(dv)
+    # global fdv_max
+    # fdv_max = max(np.abs(fdv), fdv_max)
+    # if fdv > 1e-17:
+    #     print("f dot v should be 0 is:", fdv, "max:", fdv_max)
+
+    return m_f
+
+
+def v2_force2(p1_state: ps.ParticleState,
+              p2_state: ps.ParticleState) -> ndarray:
+    """
+        Speed limit Force.
+
+        2021-3-21 Test new idea.
+
+        Same idea as older v_force().  We apply force
+        to reduce speed towards zero.
+
+        But v_force only worked in the Y dimension (in line with
+        dr).  This will test in line with V.  And this will use
+        v^2 which v_force() did not.
+
+        ResultL total disaster.  Causing V to drop to zero just causes
+        EP pairs to collapse.  Stupid.
+    """
+    global Force_Title
+    Force_Title = "v2_force2 [v² force in line with V] "
+    dv: ndarray = p1_state.v - p2_state.v
+    dr: ndarray = p1_state.r - p2_state.r
+    r = norm(dr)
+    if r == 0.0:
+        # Two particles are at the same location in space.
+        return np.zeros(3)  # Blows up, just punt
+
+    f_vec = dv * np.abs(dv) * (-1e-7 * np.abs(p1_state.p.charge * p2_state.p.charge) / (r * r))
     return f_vec
+
+
+def p_force2b(p1_state: ps.ParticleState,
+              p2_state: ps.ParticleState) -> ndarray:
+    """
+        2021-3-21 force 2 again, but fix the math.
+
+        Turn towards parallel to make relative V drop to 0.
+        Do the same for all particle combinations.
+        The larger dr/dt, the more the force.  This is what was
+        coded in force2, but there I made the turning force drop
+        to zero at 0 and 180 by accident of code.
+    """
+    global Force_Title
+    Force_Title = "p_force2b [turn towards parallel for all] "
+    dv: ndarray = p1_state.v - p2_state.v
+    dr: ndarray = p1_state.r - p2_state.r
+    r = norm(dr)
+    if r == 0.0:
+        # Two particles are at the same location in space.
+        return np.zeros(3)  # Blows up, just punt
+    v = norm(dv)
+    if v == 0.0:
+        # Zero relative velocity.
+        return np.zeros(3)  # no force in this case
+    dr_hat = dr / r
+    dv_hat = dv / v
+    # f_vec always points down
+    f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
+    f_vec /= norm(f_vec)
+    # Scaler force:
+    dr_dt = dv.dot(dr_hat)   # positive goes away
+    f = dr_dt * np.abs(dr_dt) * np.abs(1e-7 * p1_state.p.charge * p2_state.p.charge / (r * r))
+    return f_vec * f
 
 
 def combined_es_p_force(p1_state: ps.ParticleState,
