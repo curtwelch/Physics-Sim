@@ -47,9 +47,9 @@ def main():
     init_title()
 
     # do_1h()
-    do_2h()
+    # do_2h()
     # do_2pe()
-    # do_6h()
+    do_6h()
 
 
 def init_title():
@@ -150,7 +150,7 @@ def do_6h():
                         total_force=Total_force,
                         dt_max=1e-20,
                         # dt_max=1e-30,
-                        pull_center_force=5e-6,
+                        pull_center_force=4e-7,
                         )
 
     e, p = sim.add_ep_a((0.0, 0.0, 0.000), radius=0.001)
