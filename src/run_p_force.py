@@ -43,13 +43,16 @@ Total_force = None
 def main():
     global Total_force
     # Total_force = total_force
-    Total_force = combined_es_p_force2b
+    # Total_force = combined_es_p_force2b
+    Total_force = combined_es_p_force6
+
     init_title()
 
+    do_0h()
     # do_1h()
     # do_2h()
     # do_2pe()
-    do_6h()
+    # do_6h()
 
 
 def init_title():
@@ -59,6 +62,25 @@ def init_title():
     sim = ps.Simulation(total_force=Total_force)
     sim.add_ep_a((0.0, 0.0, 0.0))
     sim.init_world()
+
+
+def do_0h():
+    """ Simple test of P and E falling together. """
+    sim = ps.Simulation(title="do_0h" + Force_Title,
+                        total_force=Total_force,
+                        dt_max=1e-20,
+                        dt_min=1e-21,
+                        # pixels_per_angstrom=50,
+                        pixels_per_angstrom=200,
+                        )
+
+    e, p = sim.add_ep_a((0.0, 0.0, 0.0), radius=1.0)
+    e.cur_state.v[1] = 0.0
+    e.cur_state.v[0] = -ps.CONST_C/1000
+
+    p.cur_state.v[1] = 0.0
+
+    sim.run()
 
 
 def do_1h():
@@ -834,6 +856,87 @@ def combined_es_p_force2b(p1_state: ps.ParticleState,
     vf = dr_dt * np.abs(dr_dt * 1e-7 * qq_rr)
 
     return es_vec + vf_hat * vf
+
+
+def combined_es_p_force6(p1_state: ps.ParticleState,
+                          p2_state: ps.ParticleState) -> ndarray:
+    """
+        2021-03-24
+
+        Whole new idea.  Make V force a dead simple negative feedback
+        to r force.  This will make it oscillate.  An electron falling
+        towards a proton will just oscillate in one dimension at
+        a fixed frequency. Bang! We have our fixed base frequency!
+
+        Same for two electrons flying away -- they will oscillate as well.
+        Well, not if they don't go fast enough.  Not sure what will happen.
+
+        Force simply in line with r.  No right angles.
+
+        Not sure how to balance with the r² nature of r force but I'll just
+        try something and guess and we can see what it does.
+
+        I'm going to use v dot r as the feedback velocity.  But maybe
+        using total V has value?
+
+        e = kqq/r² = 1e-7 cc qq/r²
+        b = -1e-7 vv qq/r²
+        total = (cc-vv) 1e-7 qq/r²
+
+        That's beautiful.  But what will it do!
+
+        RESULT:  Nothing useful.  It doesn't oscillate it just crashes
+        into the center and reaches near SOL and drifts towards center
+        at maximum slow simulation speed.
+
+        Try 2.  Linear Oscillation requires r feedback that flips at some r
+        value.  So, how to do this?
+
+        e = kqq/r² = 1e-7 cc qq/r²
+        invert could be = 1e-7 cc qq/r²r²
+        total = 1e-7 cc qq/r² - 1e-7 cc qq/r²r²
+        t = (1e-7 cc qq/r²) (1 - 1/r²)
+
+        That bounced, but just flew away.  1/r² wasn't strong enough to stop.
+        it. Oh, wait, that bounces when r==1.  1 meter. Lets rescale that.
+
+        (1 - AA/r²) didn't bounce.  Just drifted past P. That's not the right
+        way to re-scale. Force drops to zero at 1Å but doesn't build up fast
+        enough.
+
+        Ugh, first, I did 1e-7 q q, instead of 1e-7 c c q q.  Force was 18
+        orders of magnitude too small!  Second, the issue seemed to be more
+        of a simulation error not coping with the PE being so wrong and not
+        adjusting DT in a reasonable way.  Fixed the formula and got 0h to
+        bounce at least.  with radius 0 force set to .01A.
+
+    """
+    global Force_Title
+    Force_Title = "combined force6 and es"
+    dv: ndarray = p1_state.v - p2_state.v
+    dr: ndarray = p1_state.r - p2_state.r
+    r = norm(dr)
+    if r == 0.0:
+        return np.zeros(3)  # blow up - abort
+    dr_hat = dr / r
+    # qq_rr = 1e-7 * p1_state.p.charge * p2_state.p.charge / (r * r)
+    es = ps.CONST_KE * p1_state.p.charge * p2_state.p.charge / (r * r)
+
+    v = dv.dot(dr_hat)
+    # Try 1 -- failed:
+    # f = (ps.CONST_C * ps.CONST_C - v * v) * qq_rr
+
+    # Try 2:
+    rl = .01 * ps.ANGSTROM
+    # f = qq_rr * (1.0 - rl*rl/(r*r))
+    # print(f"{f:+.1e}", end=' ')
+
+    # try 3: Cheap hack
+    f = es  # just the es force
+    if r < .5 * ps.ANGSTROM:
+        f = -f
+
+    return dr_hat * f
 
 
 if __name__ == '__main__':
