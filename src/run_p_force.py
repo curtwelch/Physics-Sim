@@ -44,15 +44,16 @@ def main():
     global Total_force
     # Total_force = total_force
     # Total_force = combined_es_p_force2b
-    Total_force = combined_es_p_force6
+    # Total_force = combined_es_p_force6
+    Total_force = combined_es_v_force7
 
     init_title()
 
-    do_0h()
+    # do_0h()
     # do_1h()
     # do_2h()
     # do_2pe()
-    # do_6h()
+    do_6h()
 
 
 def init_title():
@@ -66,17 +67,17 @@ def init_title():
 
 def do_0h():
     """ Simple test of P and E falling together. """
-    sim = ps.Simulation(title="do_0h" + Force_Title,
+    sim = ps.Simulation(title="do_0h " + Force_Title,
                         total_force=Total_force,
-                        dt_max=1e-20,
-                        dt_min=1e-21,
+                        dt_max=1e-19,
+                        dt_min=1e-24,
                         # pixels_per_angstrom=50,
                         pixels_per_angstrom=200,
                         )
 
     e, p = sim.add_ep_a((0.0, 0.0, 0.0), radius=1.0)
     e.cur_state.v[1] = 0.0
-    e.cur_state.v[0] = -ps.CONST_C/1000
+    e.cur_state.v[0] = -ps.CONST_C / 1000
 
     p.cur_state.v[1] = 0.0
 
@@ -127,7 +128,7 @@ def do_2h():
     """ Simple test of p force with a single EP pair. """
     sim = ps.Simulation(title="do_2h " + Force_Title,
                         total_force=Total_force,
-                        dt_max=1e-20,
+                        dt_max=1e-19,
                         # pixels_per_angstrom=50,
                         # pull_center_force=1e-10,
                         )
@@ -142,7 +143,7 @@ def do_2h():
     # e, p = sim.add_ep_a((0.6, 0.0, 0.1), radius=0.08)
 
     # sim.add_ep_a((1.0, 0.0, 0.2), radius=0.05)
-    _e, _p = sim.add_ep_a((1.0, 0.5, 0.2), radius=0.05)
+    _e, _p = sim.add_ep_a((1.0, 0.5, 1.0), radius=0.05)
 
     sim.run()
 
@@ -167,12 +168,13 @@ def do_2pe():
 
 def do_6h():
     """ Test of 6H (6P 6E) """
-    sim = ps.Simulation(title="do_6h [combined pullc] " + Force_Title,
+    sim = ps.Simulation(title="do_6h " + Force_Title,
                         pixels_per_angstrom=10000,
                         total_force=Total_force,
+                        do_v_force=False,
                         dt_max=1e-20,
                         # dt_max=1e-30,
-                        pull_center_force=4e-7,
+                        # pull_center_force=4e-7,
                         )
 
     e, p = sim.add_ep_a((0.0, 0.0, 0.000), radius=0.001)
@@ -784,7 +786,9 @@ def v2_force2(p1_state: ps.ParticleState,
         # Two particles are at the same location in space.
         return np.zeros(3)  # Blows up, just punt
 
-    f_vec = dv * np.abs(dv) * (-1e-7 * np.abs(p1_state.p.charge * p2_state.p.charge) / (r * r))
+    f_vec = dv * np.abs(dv) * (
+                -1e-7 * np.abs(p1_state.p.charge * p2_state.p.charge) / (
+                    r * r))
     return f_vec
 
 
@@ -817,8 +821,9 @@ def p_force2b(p1_state: ps.ParticleState,
     f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
     f_vec /= norm(f_vec)
     # Scaler force:
-    dr_dt = dv.dot(dr_hat)   # positive goes away
-    f = dr_dt * np.abs(dr_dt * 1e-7 * p1_state.p.charge * p2_state.p.charge / (r * r))
+    dr_dt = dv.dot(dr_hat)  # positive goes away
+    f = dr_dt * np.abs(
+        dr_dt * 1e-7 * p1_state.p.charge * p2_state.p.charge / (r * r))
     return f_vec * f
 
 
@@ -852,21 +857,21 @@ def combined_es_p_force2b(p1_state: ps.ParticleState,
     vf_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
     vf_hat = vf_vec / norm(vf_vec)
     # v force Scaler magnitude:
-    dr_dt = dv.dot(dr_hat)   # positive goes away
+    dr_dt = dv.dot(dr_hat)  # positive goes away
     vf = dr_dt * np.abs(dr_dt * 1e-7 * qq_rr)
 
     return es_vec + vf_hat * vf
 
 
 def combined_es_p_force6(p1_state: ps.ParticleState,
-                          p2_state: ps.ParticleState) -> ndarray:
+                         p2_state: ps.ParticleState) -> ndarray:
     """
         2021-03-24
 
-        Whole new idea.  Make V force a dead simple negative feedback
-        to r force.  This will make it oscillate.  An electron falling
-        towards a proton will just oscillate in one dimension at
-        a fixed frequency. Bang! We have our fixed base frequency!
+        Whole new idea.  Make V force a dead simple negative feedback to r
+        force.  This will make it oscillate [WRONG].  An electron falling
+        towards a proton will just oscillate in one dimension at a fixed
+        frequency. Bang! We have our fixed base frequency!
 
         Same for two electrons flying away -- they will oscillate as well.
         Well, not if they don't go fast enough.  Not sure what will happen.
@@ -913,7 +918,7 @@ def combined_es_p_force6(p1_state: ps.ParticleState,
     """
     global Force_Title
     Force_Title = "combined force6 and es"
-    dv: ndarray = p1_state.v - p2_state.v
+    # dv: ndarray = p1_state.v - p2_state.v
     dr: ndarray = p1_state.r - p2_state.r
     r = norm(dr)
     if r == 0.0:
@@ -922,12 +927,12 @@ def combined_es_p_force6(p1_state: ps.ParticleState,
     # qq_rr = 1e-7 * p1_state.p.charge * p2_state.p.charge / (r * r)
     es = ps.CONST_KE * p1_state.p.charge * p2_state.p.charge / (r * r)
 
-    v = dv.dot(dr_hat)
+    # v = dv.dot(dr_hat)
     # Try 1 -- failed:
     # f = (ps.CONST_C * ps.CONST_C - v * v) * qq_rr
 
     # Try 2:
-    rl = .01 * ps.ANGSTROM
+    # rl = .01 * ps.ANGSTROM
     # f = qq_rr * (1.0 - rl*rl/(r*r))
     # print(f"{f:+.1e}", end=' ')
 
@@ -937,6 +942,51 @@ def combined_es_p_force6(p1_state: ps.ParticleState,
         f = -f
 
     return dr_hat * f
+
+
+def combined_es_v_force7(p1_state: ps.ParticleState,
+                         p2_state: ps.ParticleState) -> ndarray:
+    """
+        2021-03-29
+
+        Idea from thinking about how an E in orbit can create magnetic forces
+        in external moving E2. The V difference from when E is moving with the
+        motion of E or against the motion creates the resulting B force.
+
+        Idea requires these things:
+
+        (1) F is linear proportion to V (aka norm(dv)) and does not change
+        strength based on angle of of V.
+
+        (2) F is 90º to V. Which also makes it energy conserving.
+
+        (3) F always pushes away. So it makes the particles turn away from each
+        other. OH, no, for EP it pushes away. But for EE and PP it must turn
+        towards each other!  Force must flip with charge polarity.
+    """
+    global Force_Title
+    Force_Title = "combined es and force7"  # + "*1000"
+    dv: ndarray = p1_state.v - p2_state.v
+    dr: ndarray = p1_state.r - p2_state.r
+    r = norm(dr)
+    if r == 0.0:
+        return np.zeros(3)  # blow up - abort
+    v = norm(dv)
+
+    dr_hat = dr / r
+    dv_hat = dv / v
+    qq_rr = p1_state.p.charge * p2_state.p.charge / (r * r)
+    es = ps.CONST_KE * qq_rr
+
+    if v == 0.0:
+        return dr_hat * es
+
+    # f_vec always points down
+    f_vec = np.cross(np.cross(dr_hat, dv_hat), dv_hat)
+    f_vec /= norm(f_vec)
+    # Scaler B force:
+    f = v * v * 1e-7 * qq_rr
+    return dr_hat * es + f_vec * f   # * 1000.0
 
 
 if __name__ == '__main__':
