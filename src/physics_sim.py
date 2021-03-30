@@ -24,16 +24,18 @@ import pygame
 
 import crt
 
-BLACK = 0, 0, 0         # Color of an Electron
-WHITE = 255, 255, 255   # Screen Background color
-RED = 255, 0, 0         # Color of a Proton
-BLUE = 0, 0, 255        # Color of a Neutron
+Old_dt_adjust = False
 
-ANGSTROM = 1.0e-10          # m/Å - One ANGSTROM is 1e-10 meters
-CONST_C = 299792458.0       # Speed of light m/s - defined constant
+BLACK = 0, 0, 0  # Color of an Electron
+WHITE = 255, 255, 255  # Screen Background color
+RED = 255, 0, 0  # Color of a Proton
+BLUE = 0, 0, 255  # Color of a Neutron
+
+ANGSTROM = 1.0e-10  # m/Å - One ANGSTROM is 1e-10 meters
+CONST_C = 299792458.0  # Speed of light m/s - defined constant
 # CONST_KE = 8.9875517873681764e9   # Coulomb's constant (1/4 πe)  K(sub)e
 # CONST_KE = CONST_C² * 1.0e-7      # Same as above -- old now?
-CONST_KE = 8.9875517923e9   # Coulomb's constant; New? 8.9875517923(14)×10^9
+CONST_KE = 8.9875517923e9  # Coulomb's constant; New? 8.9875517923(14)×10^9
 # CONST_G = 6.67408e-11  # Gravitational Constant, 2014 CODATA
 CONST_G = 6.67430e-11  # Gravitational Constant, 2018 CODATA 6.67430(15)×10−11
 
@@ -45,10 +47,10 @@ CONST_E_MASS = 9.10938356e-31
 
 # RLimit = 0.1 * ANGSTROM       # Radius limit hack
 # RLimit = 0.0001 * ANGSTROM    # Radius limit hack
-RLimit = 0.0000001 * ANGSTROM   # Radius limit hack
+RLimit = 0.0000001 * ANGSTROM  # Radius limit hack
 
-Energy_fix = False      # fix based on total PE+KE at start
-Energy_fix2 = False     # TODO is this useful or should be be deleted?
+Energy_fix = False  # fix based on total PE+KE at start
+Energy_fix2 = False  # TODO is this useful or should be be deleted?
 
 
 # def norm(vec: ndarray) -> float:
@@ -357,12 +359,12 @@ class Particle:
 
         self.lock_in_place = False  # Don't move if true.
 
-        self.avgKE = 0.0    # Running average of KE
-        self.avgPE = 0.0    # Running average of PE
+        self.avgKE = 0.0  # Running average of KE
+        self.avgPE = 0.0  # Running average of PE
 
-        self.charge = 0.0   # Defined by subclass for e and p
-        self.mass = 0.0     # Defined in subclass for e and p
-        self.symbol = 'e'   # Defined in subclass for e and p
+        self.charge = 0.0  # Defined by subclass for e and p
+        self.mass = 0.0  # Defined in subclass for e and p
+        self.symbol = 'e'  # Defined in subclass for e and p
 
     # def gravity_force(self, p: 'Particle'):
     #     # Magnitude of gravity between self and other particle
@@ -488,6 +490,7 @@ class Particle:
 
 class Electron(Particle):
     """ A Single Electron. """
+
     def __init__(self, sim: 'Simulation',
                  r: Tuple[float, float, float],
                  v=(0.0, 0.0, 0.0)):
@@ -505,6 +508,7 @@ class Electron(Particle):
 
 class Proton(Particle):
     """ A Single Proton. """
+
     def __init__(self, sim: 'Simulation',
                  r: Tuple[float, float, float],
                  v=(0.0, 0.0, 0.0),
@@ -529,6 +533,7 @@ class Neutron(Particle):
         Testing the idea of how this will "glue" together
         protons to form an atomic nucleus.
     """
+
     def __init__(self, sim: 'Simulation',
                  r: Tuple[float, float, float],
                  v=(0.0, 0.0, 0.0),
@@ -589,7 +594,7 @@ class Simulation:
             total_force: A function to calculate force between to particles
             pull_center_force: constant force towards center of world.
         """
-        self.title = title      # Screen Title
+        self.title = title  # Screen Title
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.screen_depth = screen_depth
@@ -600,18 +605,20 @@ class Simulation:
             (self.screen_height / self.pixels_per_angstrom * ANGSTROM) / 2.0,
             (self.screen_depth / self.pixels_per_angstrom * ANGSTROM) / 2.0))
 
-        self.dt_min = dt_min            # defines units of self.now
+        self.dt_min = dt_min  # defines units of self.now
         self.dt_max = dt_max
         self.dt_adjust = dt_adjust
-        self.stop_at: int = stop_at     # Simulations time to stop
+        self.dt_factor = 10.0**(1/5)
+        self.dt_percent = 0.2
+        self.stop_at: int = stop_at  # Simulations time to stop
         self.do_v_force = do_v_force
         self.total_force = total_force
         self.pull_center_force = pull_center_force
 
         self.world: list[Particle] = []
 
-        self.fps_limit = 500    # pygame thing - Frames Per Second
-        self.fps_avg = 1.0      # Computed average speed of simulation
+        self.fps_limit = 500  # pygame thing - Frames Per Second
+        self.fps_avg = 1.0  # Computed average speed of simulation
         self.run_me = True
         self.cycle_count = 0
         self.target_draw_rate = target_draw_rate
@@ -619,7 +626,7 @@ class Simulation:
 
         # now is an unlimited precision int because floats
         # don't have enough precision.
-        self.now: int = 0          # Simulation steps in dt_min units
+        self.now: int = 0  # Simulation steps in dt_min units
 
         self.inside_r_limit_count = 0
         self.e_bounce_count = 0
@@ -780,33 +787,33 @@ class Simulation:
         # solving for v:
         # v² = kq²/mrj²
         # v = sqrt(kq²/mrj²)
-        cm_r = np.array(center) * ANGSTROM     # Center of mass
+        cm_r = np.array(center) * ANGSTROM  # Center of mass
         rad = radius
         v = velocity
-        j = 1 + CONST_E_MASS/CONST_P_MASS
+        j = 1 + CONST_E_MASS / CONST_P_MASS
         if rad is None and v is None:
-            rad = 0.2           # Angstroms - Default
+            rad = 0.2  # Angstroms - Default
         if rad is not None:
-            rad *= ANGSTROM     # Convert Angstrom to meters
+            rad *= ANGSTROM  # Convert Angstrom to meters
 
         if v is None and rad is not None:
             # Calculate v from rad
             # v = sqrt(kq²/mrj²)
             v = math.sqrt(CONST_KE * CONST_P_CHARGE ** 2 /
-                          (CONST_E_MASS * rad * (j**2)))
+                          (CONST_E_MASS * rad * (j ** 2)))
 
         if rad is None and v is not None:
             # Calculate rad from v
             # r = kq²/mv²j²
             rad = CONST_KE * (CONST_P_CHARGE ** 2) / \
-                  (CONST_E_MASS * (v**2) * (j**2))
+                  (CONST_E_MASS * (v ** 2) * (j ** 2))
 
         # print()
         # print("rad is", rad, "v is", v)
         # print("rad is", rad/ANGSTROM, "Å")
 
-        p_r = cm_r - np.array((rad * CONST_E_MASS/CONST_P_MASS, 0.0, 0.0))
-        p_v = np.array((0.0, -v * CONST_E_MASS/CONST_P_MASS, 0.0))
+        p_r = cm_r - np.array((rad * CONST_E_MASS / CONST_P_MASS, 0.0, 0.0))
+        p_v = np.array((0.0, -v * CONST_E_MASS / CONST_P_MASS, 0.0))
         p = self.add_p(p_r, v=p_v)
 
         e_r = cm_r + np.array((rad, 0.0, 0.0))
@@ -837,7 +844,7 @@ class Simulation:
         center_m = self.center_of_mass()
 
         # dr is how much we have to move each particle.
-        dr = self.center_of_screen-center_m
+        dr = self.center_of_screen - center_m
 
         for p in self.world:
             p.cur_state.r += dr
@@ -886,14 +893,19 @@ class Simulation:
         # and both include valid forces.
 
     def compute_end_forces(self):
-        """ Update end_state forces using end_state position and velocity. """
+        """ Update end_state forces using end_state position and velocity.
+
+            Returns: float: max percent change
+        """
+
+        max_percent_force_change = 0.0
 
         for p in self.world:
             p.end_state.zero_force()
 
         for i1 in range(len(self.world)):
             p1 = self.world[i1]
-            for i2 in range(i1+1, len(self.world)):
+            for i2 in range(i1 + 1, len(self.world)):
                 p2 = self.world[i2]
                 if self.total_force is not None:
                     f = self.total_force(p1.end_state, p2.end_state)
@@ -909,6 +921,12 @@ class Simulation:
                 dr = self.center_of_screen - p1.end_state.r
                 dr_hat = dr / norm(dr)
                 p1.end_state.f += dr_hat * self.pull_center_force
+            max_percent_force_change = max(
+                (norm(p1.end_state.f - p1.cur_state.f) /
+                 norm(p1.cur_state.f)),
+                max_percent_force_change)
+
+        return max_percent_force_change
 
     def total_kinetic_energy(self):
         total_ke = 0.0
@@ -971,7 +989,7 @@ class Simulation:
                     break
 
             if paused:
-                time.sleep(0.1)     # Maybe not needed?
+                time.sleep(0.1)  # Maybe not needed?
                 continue
 
             now = time.time()
@@ -987,11 +1005,17 @@ class Simulation:
                 self.bounce_particles()
                 self.draw_world()
 
-            self.total_ke = self.total_kinetic_energy()
-            self.total_pe = self.total_potential_energy()
+            if Old_dt_adjust:
+                # Do it every loop?
+                self.total_ke = self.total_kinetic_energy()
+                self.total_pe = self.total_potential_energy()
 
             if loop_cnt % (self.current_loops_per_update * 4) == 0:
                 # 1/4 as often as window updates
+                if not Old_dt_adjust:
+                    # Only need this for display updates
+                    self.total_ke = self.total_kinetic_energy()
+                    self.total_pe = self.total_potential_energy()
                 self.print_stats()
 
                 if 0.0 < self.stop_at < self.now:
@@ -1012,7 +1036,7 @@ class Simulation:
             for p in self.world:
                 p.move()
 
-            self.now += round(self.dt/self.dt_min)
+            self.now += round(self.dt / self.dt_min)
 
             if Energy_fix:  # not compatible with v_force() - breaks PE
                 # Fix total energy error
@@ -1078,13 +1102,14 @@ class Simulation:
         elif isinstance(p, Proton):
             color = RED
             size = 4
-        else:   # A Neutron
+        else:  # A Neutron
             color = BLUE
             size = 5
 
-        min_scale = 1.0     # At back of screen
-        max_scale = 3.0     # At front of screen
-        size *= (z / float(self.screen_depth)) * (max_scale - min_scale) + min_scale
+        min_scale = 1.0  # At back of screen
+        max_scale = 3.0  # At front of screen
+        size *= (z / float(self.screen_depth)) * (
+                max_scale - min_scale) + min_scale
         size = max(1, int(size))
 
         pygame.draw.circle(self.screen, color, (x, y), size, 0)
@@ -1113,7 +1138,7 @@ class Simulation:
         print(f"  FPS:{self.fps_avg:.1f}", end='')
         # print(f"  Target Rate:{self.target_draw_rate}", end='')
         # print(f"  Loops/update:{self.current_loops_per_update}", end='')
-        update_rate = self.fps_avg/self.current_loops_per_update
+        update_rate = self.fps_avg / self.current_loops_per_update
         print(f"  Window Update Rate:{update_rate:.1f}", end='')
         print()
 
@@ -1171,6 +1196,7 @@ class Simulation:
             Only first 10 shown.
         """
         cnt = 0
+        need_nl = False
         for i in range(len(self.world)):
             p1 = self.world[i]
             if not isinstance(p1, Proton):
@@ -1182,13 +1208,13 @@ class Simulation:
                 d = p1.cur_state.distance(p2.cur_state)[0]
                 pair = (i, j)
                 last_time: int
-                last_d, last_time, avg_v = self.p_pair_last_distance.get(pair, (
-                    d, 0, 0.0))
+                last_d, last_time, avg_v = (
+                    self.p_pair_last_distance.get(pair, (d, 0, 0.0)))
                 # Convert from dt_min time steps to seconds
                 dt_seconds = (self.now - last_time) * self.dt_min
                 if dt_seconds:
                     # Prevent divide by zero. Shouldn't happen anymore?
-                    v = (d - last_d) / dt_seconds   # positive v if moving away
+                    v = (d - last_d) / dt_seconds  # positive v if moving away
                     avg_v += (v - avg_v) * .01
                 else:
                     v = 0.0
@@ -1200,14 +1226,17 @@ class Simulation:
                 print(f"   v:{avg_v:+.2e} m/s", end='')
                 if cnt % 2 == 1:
                     print()
+                    need_nl = False
                 else:
                     print(end="     ")
+                    need_nl = True
                 cnt += 1
-                if cnt > 10:
+                if cnt >= 14:
                     break
-            if cnt > 10:
+            if cnt >= 14:
                 break
-        print()
+        if need_nl:
+            print()
 
     def print_particle_stats(self):
         total_avg_ke = 0.0
@@ -1224,7 +1253,7 @@ class Simulation:
         ke_min = min(e_ke)
         print("Electron KE ratios:", end='')
         for ke in e_ke:
-            print(f" {ke/ke_min:.1f}", end='')
+            print(f" {ke / ke_min:.1f}", end='')
         print()
 
         for i in range(len(self.world)):
@@ -1243,7 +1272,8 @@ class Simulation:
             #     print(" KE:?????")
             if self.total_ke:
                 print(" KE:%5.1f%%" % (
-                        p.cur_state.kinetic_energy() * 100 / self.total_ke), end='')
+                        p.cur_state.kinetic_energy() * 100 / self.total_ke),
+                      end='')
             else:
                 print(" KE:?", end='')
             momentum = norm(p.cur_state.momentum())
@@ -1277,6 +1307,8 @@ class Simulation:
             # force and end_state force estimates ending force.  At the start
             # end_state force is just the same as the cur_state force.
 
+            max_percent_force_change = 0.0
+
             for it in range(3):
                 # print "begin iteration", it
                 for p in self.world:
@@ -1292,7 +1324,7 @@ class Simulation:
                 # because it duplicates a lot of the same work, but need to
                 # restructure code to do that.
 
-                self.compute_end_forces()
+                max_percent_force_change = self.compute_end_forces()
 
                 # total_ke2 = total_end_kinetic_energy(self.world)
                 # total_pe2 = total_end_potential_energy(self.world)
@@ -1310,20 +1342,24 @@ class Simulation:
 
             # Now calculate total Energy after this move.
 
-            total_ke2 = self.total_end_kinetic_energy()
-            total_pe2 = self.total_end_potential_energy()
+            if Old_dt_adjust:
+                total_ke2 = self.total_end_kinetic_energy()
+                total_pe2 = self.total_end_potential_energy()
 
-            # energy_diff = (total_ke2 + total_pe2) - (self.total_ke + self.total_pe) # last move
-            # error only
+                # energy_diff = (total_ke2 + total_pe2) - (self.total_ke + self.total_pe) # last move
+                # error only
 
-            # Ah, a computational problem showed up.  When one of the two is many
-            # orders of magnitude different from the other, the accuracy is all
-            # lost in the difference if done the above way vs the way below!
+                # Ah, a computational problem showed up.  When one of the two is many
+                # orders of magnitude different from the other, the accuracy is all
+                # lost in the difference if done the above way vs the way below!
 
-            self.energy_diff_last = (total_ke2 - self.total_ke) + (
-                    total_pe2 - self.total_pe)  # last move error only
-            energy_diff_start = total_ke2 - self.starting_total_ke  # Error from start
-            energy_diff_start += total_pe2 - self.starting_total_pe
+                self.energy_diff_last = (total_ke2 - self.total_ke) + (
+                        total_pe2 - self.total_pe)  # last move error only
+                energy_diff_start = total_ke2 - self.starting_total_ke  # Error from start
+                energy_diff_start += total_pe2 - self.starting_total_pe
+            else:
+                total_ke2 = 0.0
+                energy_diff_start = 0.0
 
             self.cycle_count += 1
 
@@ -1331,28 +1367,50 @@ class Simulation:
             # Dynamically change dt to maintain error and maximise simulation speed
             ######################################################################
 
-            if self.dt_adjust and total_ke2 != 0.0:
-                # print "==DO DT ADJUST self.cycleCount", self.cycleCount, "abs(energy_diff)", abs(energy_diff),
-                # print "total_ke2", total_ke2, "percent", abs(energy_diff) / total_ke2
-                if self.dt < self.dt_max and self.cycle_count > 3 and abs(
-                        self.energy_diff_last) / total_ke2 < 0.0001:
-                    # print "SPEEDUP -- increase DT abs(diff)/total is", abs(energy_diff) / total_ke2
-                    self.dt *= 2.0
-                    self.dt = min(self.dt, self.dt_max)
-                    # self.cycleCount = 0
-                    # continue
-                    # No need to restart -- take this move as fine but use a larger dt
-                    # for the next move
+            if Old_dt_adjust:
+                if self.dt_adjust and total_ke2 != 0.0:
+                    # print "==DO DT ADJUST self.cycleCount", self.cycleCount, "abs(energy_diff)", abs(energy_diff),
+                    # print "total_ke2", total_ke2, "percent", abs(energy_diff) / total_ke2
+                    if self.dt < self.dt_max and self.cycle_count > 3 and abs(
+                            self.energy_diff_last) / total_ke2 < 0.0001:
+                        # print "SPEEDUP -- increase DT abs(diff)/total is", abs(energy_diff) / total_ke2
+                        self.dt *= 2.0
+                        self.dt = min(self.dt, self.dt_max)
+                        # self.cycleCount = 0
+                        # continue
+                        # No need to restart -- take this move as fine but use a larger dt
+                        # for the next move
 
-                elif self.dt > self.dt_min and abs(
-                        self.energy_diff_last) / total_ke2 > 0.001:
-                    # print "SLOWDOWN -- reduce DT abs(diff)/total is", abs(energy_diff) / total_ke2
-                    self.dt /= 2.0
-                    self.dt = max(self.dt, self.dt_min)
-                    for p1 in self.world:
-                        p1.reset_state()
-                    self.cycle_count = 0
-                    continue
+                    elif self.dt > self.dt_min and abs(
+                            self.energy_diff_last) / total_ke2 > 0.001:
+                        # print "SLOWDOWN -- reduce DT abs(diff)/total is", abs(energy_diff) / total_ke2
+                        self.dt /= 2.0
+                        self.dt = max(self.dt, self.dt_min)
+                        for p1 in self.world:
+                            p1.reset_state()
+                        self.cycle_count = 0
+                        continue
+            else:  # New way
+                if self.dt_adjust:
+                    # print(f"{max_percent_force_change:.6f}   {self.dt=:.1e} ", end=' ')
+                    if (self.dt < self.dt_max and
+                            # self.cycle_count > 3 and
+                            max_percent_force_change < self.dt_percent/self.dt_factor):
+                        print("SPEEDUP", end=' ')
+                        self.dt *= self.dt_factor
+                        self.dt = min(self.dt, self.dt_max)
+                        # No need to restart
+                        # Use the current move values, then use the new dt for
+                        # the next cycle.
+
+                    elif self.dt > self.dt_min and max_percent_force_change > self.dt_percent:
+                        print("SLOWDOWN", end=' ')
+                        self.dt /= self.dt_factor
+                        self.dt = max(self.dt, self.dt_min)
+                        for p1 in self.world:
+                            p1.reset_state()
+                        self.cycle_count = 0
+                        continue
 
             self.energy_diff_max = max(self.energy_diff_max,
                                        abs(self.energy_diff_last))
@@ -1430,7 +1488,7 @@ class Simulation:
             inset = 40
 
         # ke_change_factor = 0.25   # Remove energy on bounce (reduce to 25%)
-        ke_change_factor = 1.0      # Don't remove energy on bounce
+        ke_change_factor = 1.0  # Don't remove energy on bounce
 
         bounce = False
 
