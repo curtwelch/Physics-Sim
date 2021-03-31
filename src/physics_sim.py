@@ -567,7 +567,6 @@ class Simulation:
                  pixels_per_angstrom=200,
                  dt_min=1e-30,
                  dt_max=1.0,
-                 dt_adjust=True,
                  stop_at=0,
                  target_draw_rate=30,
                  do_v_force=True,
@@ -586,7 +585,6 @@ class Simulation:
             pixels_per_angstrom: conversion factor- simulated space to screen
             dt_min: seconds - Smallest Time Step of simulation
             dt_max: seconds - Largest Time Stop of seconds
-            dt_adjust: boolean - Adjust time step automatically
             stop_at: int - simulation stops when it goes past this.
                      0 means run forever. in units of dt_min steps.
             target_draw_rate: int - window updates per seconds
@@ -607,9 +605,10 @@ class Simulation:
 
         self.dt_min = dt_min  # defines units of self.now
         self.dt_max = dt_max
-        self.dt_adjust = dt_adjust
-        self.dt_factor = 10.0**(1/5)
+        self.dt_factor = 10.0 ** (1 / 5)
         self.dt_percent = 0.2
+        self.dt = self.dt_min
+
         self.stop_at: int = stop_at  # Simulations time to stop
         self.do_v_force = do_v_force
         self.total_force = total_force
@@ -620,7 +619,6 @@ class Simulation:
         self.fps_limit = 500  # pygame thing - Frames Per Second
         self.fps_avg = 1.0  # Computed average speed of simulation
         self.run_me = True
-        self.cycle_count = 0
         self.target_draw_rate = target_draw_rate
         self.current_loops_per_update = 0
 
@@ -647,8 +645,6 @@ class Simulation:
         self.energy_diff_last = 0.0
         self.energy_diff_max = 0.0
         self.max_vc = 0.0  # Max V in units of CONST_C
-
-        self.dt = self.dt_min
 
         self.screen = pygame.display.set_mode(
             (self.screen_width, self.screen_height))
@@ -1005,17 +1001,9 @@ class Simulation:
                 self.bounce_particles()
                 self.draw_world()
 
-            if Old_dt_adjust:
-                # Do it every loop?
-                self.total_ke = self.total_kinetic_energy()
-                self.total_pe = self.total_potential_energy()
-
             if loop_cnt % (self.current_loops_per_update * 4) == 0:
-                # 1/4 as often as window updates
-                if not Old_dt_adjust:
-                    # Only need this for display updates
-                    self.total_ke = self.total_kinetic_energy()
-                    self.total_pe = self.total_potential_energy()
+                # 1/4 as often as window update
+
                 self.print_stats()
 
                 if 0.0 < self.stop_at < self.now:
@@ -1026,7 +1014,7 @@ class Simulation:
             # Calculate next position now
             #####################################################################
 
-            energy_diff_start, total_ke2 = self.calculate_end_state()
+            self.calculate_end_state()
 
             #####################################################################
             # Make the move -- move current ending state to be the current
@@ -1037,30 +1025,10 @@ class Simulation:
                 p.move()
 
             self.now += round(self.dt / self.dt_min)
-
-            if Energy_fix:  # not compatible with v_force() - breaks PE
-                # Fix total energy error
-                # Adjust all velocities to remove energy error of energy_diff_start
-                if energy_diff_start > total_ke2:
-                    print("energy error greater than total KE error:",
-                          energy_diff_start,
-                          "total", total_ke2)
-                    energy_diff_start = total_ke2 * 0.5
-                    # Only try to take half of total KE out of the system
-                    # time.sleep(1)
-                    # sys.exit(1)
-
-                for p in self.world:
-                    # print
-                    # print "Adjust KE for particle", i, "energy_diff_start error is", energy_diff_start
-                    ke = p.cur_state.kinetic_energy()
-                    # print "Current ke is", ke
-                    # print "percent of of total is", ke/total_ke2*100.0, "%"
-                    # print "amount added of total energy_diff_start is", ke/total_ke2*energy_diff_start
-                    new_ke = ke - ke / total_ke2 * energy_diff_start
-                    # print "new should be", new_ke
-                    p.cur_state.set_kinetic_energy(new_ke)
-                    # print "new KE is now", p1.kinetic_energy()
+            # WARNING this is slightly broken now that dt is changed in step
+            # sizes that are not int values.  So self.now suffers rounding
+            # errors. But since we don't use self.now for anything other than
+            # display it's no harm no foul I guess?
 
         pygame.quit()
 
@@ -1153,17 +1121,36 @@ class Simulation:
 
         print()
 
-        re = ((self.total_ke - self.starting_total_ke) + (
-                self.total_pe - self.starting_total_pe))
+        total_ke2 = self.total_kinetic_energy()
+        total_pe2 = self.total_potential_energy()
+
+        # Must be careful to only subtract ke from ke, and pe from pe
+        # because the size of these values can be so different as to
+        # lose all precision in the differences if done wrong.
+
+        total_ke_diff = total_ke2 - self.total_ke
+        total_pe_diff = total_pe2 - self.total_pe
+
+        self.energy_diff_last = total_ke_diff + total_pe_diff
+
+        energy_diff_start = total_ke2 - self.starting_total_ke
+        energy_diff_start += total_pe2 - self.starting_total_pe
+
+        self.energy_diff_max = max(self.energy_diff_max,
+                                   abs(self.energy_diff_last))
+
+        self.last_ke = self.total_ke
+        self.last_pe = self.total_pe
+
         print("Total ke     %8.1e" % self.total_ke,
-              "change from last %8.1e" % (self.total_ke - self.last_ke))
+              "change from last %8.1e" % (total_ke_diff, ))
         print("Total pe     %8.1e" % self.total_pe,
-              "change from last %8.1e" % (self.total_pe - self.last_pe))
+              "change from last %8.1e" % (total_pe_diff, ))
         print("Total    e:  %8.1e" % (self.total_ke + self.total_pe))
-        print("Relative e:  %8.1e" % (re,), end=' ')
+        print("Relative e:  %8.1e" % (energy_diff_start,), end=' ')
         if self.total_ke:
             print("  %% of Total ke:%8.4f %% (change from start)" % (
-                abs(re * 100.0 / self.total_ke)))
+                abs(energy_diff_start * 100.0 / self.total_ke)))
         else:
             print()
 
@@ -1180,9 +1167,6 @@ class Simulation:
         print("Inside R limit:", self.inside_r_limit_count,
               "  P Bounce:", self.p_bounce_count,
               "  E Bounce:", self.e_bounce_count)
-
-        self.last_ke = self.total_ke
-        self.last_pe = self.total_pe
 
         self.print_proton_distance()
 
@@ -1301,6 +1285,7 @@ class Simulation:
             Assumes end_state forces are a copy of cur_state forces.
             Adjusts self.dt as needed based on error estimates.
         """
+        made_smaller = False    # Did we make dt smaller already this step?
         while True:  # DT restart loop
 
             # At this point, all particles have a known position, velocity, and
@@ -1340,84 +1325,42 @@ class Simulation:
                 for p in self.world:
                     p.calculate_end_velocity(self.dt)
 
-            # Now calculate total Energy after this move.
+            ############################################################
+            # Dynamically change dt to maintain error and maximise
+            # simulation speed. If self.dt_max and self.dt_min are the
+            # same, we don't adjust
+            ############################################################
 
-            if Old_dt_adjust:
-                total_ke2 = self.total_end_kinetic_energy()
-                total_pe2 = self.total_end_potential_energy()
+            # print(f"{max_percent_force_change:.6f}", end=' ')
+            # print(f"{self.dt=:.1e} ", end=' ')
+            if (self.dt < self.dt_max and
+                    not made_smaller and
+                    max_percent_force_change <
+                    self.dt_percent / self.dt_factor):
+                print("SPEEDUP", end=' ')
+                self.dt *= self.dt_factor
+                self.dt = min(self.dt, self.dt_max)
+                # No need to re-compute this step.
+                # Use the current move values, then use the new dt for
+                # the next cycle.
+                break
 
-                # energy_diff = (total_ke2 + total_pe2) - (self.total_ke + self.total_pe) # last move
-                # error only
-
-                # Ah, a computational problem showed up.  When one of the two is many
-                # orders of magnitude different from the other, the accuracy is all
-                # lost in the difference if done the above way vs the way below!
-
-                self.energy_diff_last = (total_ke2 - self.total_ke) + (
-                        total_pe2 - self.total_pe)  # last move error only
-                energy_diff_start = total_ke2 - self.starting_total_ke  # Error from start
-                energy_diff_start += total_pe2 - self.starting_total_pe
-            else:
-                total_ke2 = 0.0
-                energy_diff_start = 0.0
-
-            self.cycle_count += 1
-
-            ######################################################################
-            # Dynamically change dt to maintain error and maximise simulation speed
-            ######################################################################
-
-            if Old_dt_adjust:
-                if self.dt_adjust and total_ke2 != 0.0:
-                    # print "==DO DT ADJUST self.cycleCount", self.cycleCount, "abs(energy_diff)", abs(energy_diff),
-                    # print "total_ke2", total_ke2, "percent", abs(energy_diff) / total_ke2
-                    if self.dt < self.dt_max and self.cycle_count > 3 and abs(
-                            self.energy_diff_last) / total_ke2 < 0.0001:
-                        # print "SPEEDUP -- increase DT abs(diff)/total is", abs(energy_diff) / total_ke2
-                        self.dt *= 2.0
-                        self.dt = min(self.dt, self.dt_max)
-                        # self.cycleCount = 0
-                        # continue
-                        # No need to restart -- take this move as fine but use a larger dt
-                        # for the next move
-
-                    elif self.dt > self.dt_min and abs(
-                            self.energy_diff_last) / total_ke2 > 0.001:
-                        # print "SLOWDOWN -- reduce DT abs(diff)/total is", abs(energy_diff) / total_ke2
-                        self.dt /= 2.0
-                        self.dt = max(self.dt, self.dt_min)
-                        for p1 in self.world:
-                            p1.reset_state()
-                        self.cycle_count = 0
-                        continue
-            else:  # New way
-                if self.dt_adjust:
-                    # print(f"{max_percent_force_change:.6f}   {self.dt=:.1e} ", end=' ')
-                    if (self.dt < self.dt_max and
-                            # self.cycle_count > 3 and
-                            max_percent_force_change < self.dt_percent/self.dt_factor):
-                        print("SPEEDUP", end=' ')
-                        self.dt *= self.dt_factor
-                        self.dt = min(self.dt, self.dt_max)
-                        # No need to restart
-                        # Use the current move values, then use the new dt for
-                        # the next cycle.
-
-                    elif self.dt > self.dt_min and max_percent_force_change > self.dt_percent:
-                        print("SLOWDOWN", end=' ')
-                        self.dt /= self.dt_factor
-                        self.dt = max(self.dt, self.dt_min)
-                        for p1 in self.world:
-                            p1.reset_state()
-                        self.cycle_count = 0
-                        continue
-
-            self.energy_diff_max = max(self.energy_diff_max,
-                                       abs(self.energy_diff_last))
+            elif (self.dt > self.dt_min and
+                  max_percent_force_change > self.dt_percent):
+                print("SLOWDOWN", end=' ')
+                self.dt /= self.dt_factor
+                self.dt = max(self.dt, self.dt_min)
+                for p1 in self.world:
+                    p1.reset_state()
+                made_smaller = True
+                # We use made_smaller to make sure we don't increase
+                # the value of dt back on the same step we lowered it.
+                # Recompute this step with smaller dt value.
+                continue
 
             break  # End of DT adjust loop
 
-        return energy_diff_start, total_ke2
+        return
 
     def bounce_particles(self):
         """
