@@ -606,7 +606,7 @@ class Simulation:
         self.dt_min = dt_min  # defines units of self.now
         self.dt_max = dt_max
         self.dt_factor = 10.0 ** (1 / 5)
-        self.dt_percent = 0.2
+        self.dt_percent = 0.1   # max change in force allowed (.1=10%)
         self.dt = self.dt_min
 
         self.stop_at: int = stop_at  # Simulations time to stop
@@ -1311,11 +1311,12 @@ class Simulation:
 
                 max_percent_force_change = self.compute_end_forces()
 
-                # total_ke2 = total_end_kinetic_energy(self.world)
-                # total_pe2 = total_end_potential_energy(self.world)
-                # curEnergy = total_ke2 + total_pe2
+                # total_ke2 = self.total_end_kinetic_energy()
+                # total_pe2 = self.total_end_potential_energy()
+                # # curEnergy = total_ke2 + total_pe2
                 # error = (self.total_ke - total_ke2) + (self.total_pe - total_pe2)
-                # print "Energy error after iteration     %18.10e" % error
+                # print(f"{it} Energy error after iteration     {error:18.10e}")
+                # print(f"     {max_percent_force_change=}")
 
             if Energy_fix2:
                 # Ok, one last time, fudge velocity based on current position and
